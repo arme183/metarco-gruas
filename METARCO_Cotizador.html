@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>METARCO · Cotizador</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-gradient:   radial-gradient(ellipse at 50% 80%, #1a3d6b 0%, #0a1628 70%);
+      --card-bg:       #ffffff;
+      --card-radius:   16px;
+      --card-shadow:   0 4px 24px rgba(0,0,0,0.28);
+      --card-padding:  24px;
+      --text-light:    #ffffff;
+      --text-muted:    rgba(255,255,255,0.6);
+      --text-dark:     #1a1a2e;
+      --text-gray:     #64748b;
+      --blue-ms:       #0078d4;
+      --blue-hover:    #106ebe;
+      --color-ok:      #22c55e;
+      --color-warn:    #f59e0b;
+      --color-danger:  #ef4444;
+      --border-light:  rgba(255,255,255,0.12);
+      --border-card:   rgba(0,0,0,0.08);
+      --font-brand:    'Orbitron', sans-serif;
+      --font-ui:       'Inter', sans-serif;
+      --sidebar-w:     220px;
+      --header-h:      64px;
+    }
+    body { min-height:100vh; background:var(--bg-gradient); font-family:var(--font-ui); color:var(--text-light); line-height:1.5; }
+
+    /* LOGIN */
+    #loginScreen { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+
+    /* APP */
+    #appShell { display:none; height:100vh; flex-direction:column; }
+    #appShell.visible { display:flex; }
+
+    /* HEADER */
+    .app-header {
+      height:var(--header-h); display:flex; align-items:center; justify-content:space-between;
+      padding:0 28px; background:rgba(0,0,0,0.25); border-bottom:1px solid var(--border-light);
+      flex-shrink:0; backdrop-filter:blur(8px);
+    }
+    .header-brand { display:flex; align-items:center; gap:14px; }
+    .header-logo-box {
+      width:38px; height:38px; border-radius:10px; overflow:hidden;
+      background:linear-gradient(135deg,#0a1628,#1a3d6b);
+      border:1px solid rgba(255,255,255,0.15);
+    }
+    .header-logo-box img { width:100%; height:100%; object-fit:cover; }
+    .brand-name { font-family:var(--font-brand); font-weight:700; font-size:14px; letter-spacing:3px; }
+    .brand-sub  { font-family:var(--font-brand); font-weight:700; font-size:9px; letter-spacing:2px; color:var(--text-muted); }
+    .header-right { display:flex; align-items:center; gap:20px; }
+    .sync-pill {
+      display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-muted);
+      background:rgba(255,255,255,0.06); border:1px solid var(--border-light);
+      border-radius:20px; padding:5px 12px;
+    }
+    .sync-dot { width:7px; height:7px; border-radius:50%; background:var(--color-ok); transition:background .3s; }
+    .sync-dot.syncing { background:var(--color-warn); animation:blink 1s infinite; }
+    .sync-dot.error   { background:var(--color-danger); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .user-chip {
+      display:flex; align-items:center; gap:10px;
+      background:rgba(255,255,255,0.06); border:1px solid var(--border-light);
+      border-radius:24px; padding:5px 14px 5px 6px;
+    }
+    .user-avatar { width:28px; height:28px; border-radius:50%; background:var(--blue-ms); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; color:#fff; }
+    .user-name { font-size:13px; font-weight:600; }
+    .user-role { font-size:10px; color:var(--text-muted); }
+
+    /* LAYOUT */
+    .app-body { display:flex; flex:1; overflow:hidden; }
+
+    /* SIDEBAR */
+    .sidebar { width:var(--sidebar-w); flex-shrink:0; background:rgba(0,0,0,0.2); border-right:1px solid var(--border-light); padding:20px 12px; overflow-y:auto; }
+    .nav-label { font-family:var(--font-brand); font-size:8px; letter-spacing:2.5px; text-transform:uppercase; color:rgba(255,255,255,0.35); padding:10px 12px 6px; }
+    .nav-item {
+      display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px;
+      font-size:13px; font-weight:500; color:var(--text-muted); cursor:pointer;
+      transition:all .15s; border:none; background:transparent; width:100%; text-align:left; margin-bottom:2px;
+    }
+    .nav-item:hover { background:rgba(255,255,255,0.08); color:var(--text-light); }
+    .nav-item.active { background:var(--blue-ms); color:#fff; }
+    .nav-icon { font-size:15px; width:20px; text-align:center; }
+
+    /* MAIN */
+    .main-content { flex:1; overflow-y:auto; padding:28px 32px; }
+    .sec-header { margin-bottom:24px; }
+    .sec-title { font-family:var(--font-brand); font-weight:700; font-size:17px; letter-spacing:3px; }
+    .sec-sub { font-size:12px; color:var(--text-muted); margin-top:5px; }
+
+    /* CARDS */
+    .card { background:var(--card-bg); border-radius:var(--card-radius); box-shadow:var(--card-shadow); padding:var(--card-padding); color:var(--text-dark); }
+    .card-dark { background:rgba(255,255,255,0.06); border:1px solid var(--border-light); border-radius:var(--card-radius); padding:var(--card-padding); }
+    .card-title { font-family:var(--font-brand); font-weight:700; font-size:11px; letter-spacing:1.5px; color:var(--text-dark); margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border-card); }
+
+    /* GRID */
+    .g2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+    .g4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+
+    /* STAT */
+    .stat-card { background:var(--card-bg); border-radius:12px; padding:16px 20px; color:var(--text-dark); box-shadow:0 2px 12px rgba(0,0,0,0.15); }
+    .stat-val { font-family:var(--font-brand); font-weight:900; font-size:22px; color:var(--text-dark); }
+    .stat-lbl { font-size:10px; color:var(--text-gray); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+
+    /* TABLE */
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { font-family:var(--font-ui); font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-gray); border-bottom:1px solid var(--border-card); padding:10px 12px; text-align:left; }
+    td { padding:11px 12px; border-bottom:1px solid var(--border-card); color:var(--text-dark); font-size:13px; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(0,120,212,0.04); }
+    .tr-empty td { color:#94a3b8; text-align:center; padding:36px; }
+
+    /* BADGES */
+    .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-weight:600; font-size:10px; letter-spacing:0.5px; text-transform:uppercase; }
+    .b-admin    { background:rgba(59,130,246,0.18);  color:#93c5fd; }
+    .b-operador { background:rgba(245,158,11,0.18);  color:#fcd34d; }
+    .b-generada { background:rgba(59,130,246,0.15);  color:#60a5fa; }
+    .b-aceptada { background:rgba(34,197,94,0.15);   color:#22c55e; }
+    .b-ejecutada{ background:rgba(245,158,11,0.15);  color:#f59e0b; }
+    .b-cobrada  { background:rgba(16,185,129,0.15);  color:#10b981; }
+    .b-cancelada{ background:rgba(239,68,68,0.15);   color:#ef4444; }
+    .b-t1       { background:rgba(0,120,212,0.15);   color:#60a5fa; }
+    .b-t2       { background:rgba(245,158,11,0.18);  color:#fcd34d; }
+
+    /* BUTTONS */
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; border:none; border-radius:10px; font-family:var(--font-ui); font-weight:600; font-size:13px; cursor:pointer; padding:10px 18px; transition:background .15s; }
+    .btn-primary { background:var(--blue-ms); color:#fff; }
+    .btn-primary:hover { background:var(--blue-hover); }
+    .btn-ghost { background:rgba(255,255,255,0.1); color:var(--text-light); border:1px solid var(--border-light); }
+    .btn-ghost:hover { background:rgba(255,255,255,0.18); }
+    .btn-outline { background:transparent; color:var(--text-gray); border:1px solid var(--border-card); }
+    .btn-outline:hover { background:rgba(0,120,212,0.08); color:var(--blue-ms); border-color:var(--blue-ms); }
+    .btn-success { background:var(--color-ok); color:#fff; }
+    .btn-danger  { background:var(--color-danger); color:#fff; }
+    .btn-amber   { background:#f59e0b; color:#fff; }
+    .btn-sm { padding:5px 11px; font-size:11px; border-radius:7px; }
+    .btn-w100 { width:100%; }
+
+    /* INPUTS */
+    .inp, .sel, .textarea { width:100%; padding:10px 14px; border:1.5px solid var(--border-card); border-radius:10px; font-family:var(--font-ui); font-size:13px; color:var(--text-dark); background:#fff; outline:none; transition:border-color .15s; }
+    .inp:focus, .sel:focus, .textarea:focus { border-color:var(--blue-ms); }
+    .inp::placeholder { color:#94a3b8; }
+    .textarea { resize:vertical; }
+    .lbl { font-size:10px; font-weight:600; color:var(--text-gray); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px; }
+    .fg { margin-bottom:14px; }
+
+    /* RESULT BOX */
+    .result-box { background:linear-gradient(135deg,#0a1628,#1a3d6b); border-radius:14px; padding:24px; color:#fff; }
+    .result-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.08); font-size:13px; }
+    .result-row:last-child { border:none; }
+    .result-total { font-family:var(--font-brand); font-weight:900; font-size:28px; color:#22c55e; }
+    .result-anticipo { font-family:var(--font-brand); font-weight:700; font-size:18px; color:#f59e0b; }
+
+    /* MODAL */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index:1000; backdrop-filter:blur(5px); }
+    .modal-overlay.hidden { display:none; }
+    .modal { background:var(--card-bg); border-radius:var(--card-radius); padding:28px; width:100%; max-width:520px; max-height:88vh; overflow-y:auto; color:var(--text-dark); box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+    .modal-title { font-family:var(--font-brand); font-size:12px; font-weight:700; letter-spacing:1.5px; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid var(--border-card); }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; padding-top:16px; border-top:1px solid var(--border-card); }
+
+    /* TOAST */
+    .toast { position:fixed; bottom:24px; right:24px; background:#1e293b; color:#fff; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:500; box-shadow:0 4px 20px rgba(0,0,0,0.4); z-index:2000; border-left:3px solid var(--blue-ms); }
+    .toast.hidden { display:none; }
+
+    /* UTILS */
+    .flex { display:flex; } .ic { align-items:center; } .jb { justify-content:space-between; }
+    .g8{gap:8px;} .g12{gap:12px;} .g16{gap:16px;}
+    .mt8{margin-top:8px;} .mt16{margin-top:16px;} .mt20{margin-top:20px;}
+    .mb16{margin-bottom:16px;} .mb20{margin-bottom:20px;}
+    .tr{text-align:right;} .tc{text-align:center;} .w100{width:100%;}
+    .hidden{display:none!important;}
+    .divider { border:none; border-top:1px solid var(--border-card); margin:16px 0; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div style="display:flex;flex-direction:column;align-items:center;">
+    <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,0.25);box-shadow:0 4px 24px rgba(0,0,0,0.4);margin-bottom:-45px;z-index:10;position:relative;background:#0a1628;">
+      <img src="https://raw.githubusercontent.com/arme183/metarco-gruas/main/LOGO%20METARCO1.png" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
+    </div>
+    <div style="background:#f0f4f8;border-radius:20px;padding:60px 48px 36px;width:100%;max-width:520px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.35);">
+      <div style="font-family:'Orbitron';font-weight:900;font-size:28px;letter-spacing:5px;color:#0d1b3e;margin-bottom:6px;">METARCO</div>
+      <div style="font-family:'Orbitron';font-weight:700;font-size:9px;letter-spacing:3px;color:#64748b;margin-bottom:28px;">COTIZADOR DE GRÚAS</div>
+      <div style="font-family:'Inter';font-weight:700;font-size:16px;color:#0d1b3e;margin-bottom:6px;">Acceso restringido</div>
+      <div style="font-family:'Inter';font-weight:400;font-size:13px;color:#64748b;margin-bottom:28px;">Solo disponible para usuarios METARCO.</div>
+      <button onclick="login()" style="width:100%;padding:15px 24px;background:#0d1b3e;color:#fff;border:none;border-radius:12px;font-family:'Inter';font-weight:600;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;"
+        onmouseover="this.style.background='#1a3d6b'" onmouseout="this.style.background='#0d1b3e'">
+        <svg width="20" height="20" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+        Iniciar sesión con Microsoft
+      </button>
+      <div id="loginError" class="hidden" style="margin-top:14px;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:9px;font-size:12px;color:#ef4444;text-align:left;line-height:1.5;"></div>
+    </div>
+    <div style="margin-top:24px;display:flex;align-items:center;gap:8px;font-family:'Inter';font-size:12px;color:rgba(255,255,255,0.5);">
+      <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+      Sistema activo · METARCO 2026
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="appShell">
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="header-logo-box">
+        <img src="https://raw.githubusercontent.com/arme183/metarco-gruas/main/LOGO%20METARCO1.png" onerror="this.style.display='none'">
+      </div>
+      <div>
+        <div class="brand-name">METARCO</div>
+        <div class="brand-sub">COTIZADOR DE GRÚAS</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="sync-pill">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncText" style="font-size:11px;">Sincronizado</span>
+      </div>
+      <div class="user-chip">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div>
+          <div class="user-name" id="userName">—</div>
+          <div class="user-role" id="userRoleLbl">—</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="logout()">Salir</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <nav class="sidebar">
+      <div class="nav-label">Cotización</div>
+      <button class="nav-item admin-only" data-sec="nueva" onclick="navigate('nueva')">
+        <span class="nav-icon">➕</span> Nueva cotización
+      </button>
+      <button class="nav-item" data-sec="historial" onclick="navigate('historial')">
+        <span class="nav-icon">📋</span> Historial CRM
+      </button>
+      <div class="nav-label" style="margin-top:8px;">Directorio</div>
+      <button class="nav-item" data-sec="clientes" onclick="navigate('clientes')">
+        <span class="nav-icon">👥</span> Clientes
+      </button>
+    </nav>
+    <main class="main-content" id="mainContent"></main>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast hidden" id="toast"></div>
+
+<script>
+/* ============================================================
+   METARCO · COTIZADOR DE GRÚAS · v2.0
+   Admin: a.medina@metarco.com.mx
+   Sync: OneDrive via Microsoft Graph API
+============================================================ */
+
+const CFG = {
+  clientId: '6f7f3d07-3e40-4396-8f76-36d0f818d72d',
+  tenantId: '3fce0139-013b-4c64-a04d-8605a9eb8088',
+  admins:   ['a.medina@metarco.com.mx'],
+  scopes:   ['Files.ReadWrite', 'User.Read'],
+  fileCot:  'METARCO/METARCO_Cotizador_Datos.json',
+  fileDash: 'METARCO/METARCO_Control_Gruas_Datos.json'
+};
+
+const TARIFAS = {
+  T1: { Ligero: 1000, Pesado: 1200, Arrastre: 1000 },
+  T2: { Ligero: 1250, Pesado: 1400, Arrastre: 1200 }
+};
+const ARRASTRE_KM = 46;
+const PERIODOS = { Hora: 1.0, Día: 0.9, Semana: 0.8, Mes: 0.7 };
+const DOC_FACTOR = { Básico: 0, Medios: 0.15, Especial: 0.30 };
+const MANIOBRIST_DIA = 600;
+const IVA = 0.16;
+const MIN_HRS = 3;
+
+const msal_app = new msal.PublicClientApplication({
+  auth: {
+    clientId: CFG.clientId,
+    authority: `https://login.microsoftonline.com/${CFG.tenantId}`,
+    redirectUri: 'https://arme183.github.io/metarco-gruas/METARCO_Cotizador.html',
+    navigateToLoginRequestUrl: false
+  },
+  cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+});
+
+let S = { user: null, role: null, data: null, section: 'historial', saveTimer: null, currentQuote: null };
+
+function defaultData() {
+  return { version: '2.0', lastModified: new Date().toISOString(), clientes: [], cotizaciones: [] };
+}
+
+// --- AUTH ---
+async function login() {
+  try {
+    const r = await msal_app.loginPopup({ scopes: CFG.scopes, prompt: 'select_account' });
+    await bootApp(r.account);
+  } catch(e) {
+    const el = document.getElementById('loginError');
+    el.textContent = 'No se pudo iniciar sesión. Usa tu cuenta @metarco.com.mx.';
+    el.classList.remove('hidden');
+  }
+}
+async function logout() {
+  await msal_app.logoutPopup();
+  S = { user:null, role:null, data:null, section:'historial', saveTimer:null, currentQuote:null };
+  document.getElementById('appShell').classList.remove('visible');
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+async function getToken() {
+  const acc = msal_app.getAllAccounts();
+  if (!acc.length) return null;
+  try {
+    const r = await msal_app.acquireTokenSilent({ scopes: CFG.scopes, account: acc[0] });
+    return r.accessToken;
+  } catch {
+    const r = await msal_app.acquireTokenPopup({ scopes: CFG.scopes });
+    return r.accessToken;
+  }
+}
+
+// --- GRAPH ---
+const GRAPH = 'https://graph.microsoft.com/v1.0';
+async function readOD(path) {
+  const tok = await getToken();
+  const r = await fetch(`${GRAPH}/me/drive/root:/${path}:/content`, { headers:{ Authorization:`Bearer ${tok}` } });
+  if (r.status === 404) return null;
+  return await r.json();
+}
+async function writeOD(path, data) {
+  const tok = await getToken();
+  data.lastModified = new Date().toISOString();
+  await fetch(`${GRAPH}/me/drive/root:/${path}:/content`, {
+    method: 'PUT',
+    headers: { Authorization:`Bearer ${tok}`, 'Content-Type':'application/json' },
+    body: JSON.stringify(data, null, 2)
+  });
+}
+
+async function loadData() {
+  sync('syncing','Cargando...');
+  try {
+    const d = await readOD(CFG.fileCot);
+    sync('ok','Sincronizado');
+    return d || defaultData();
+  } catch { sync('error','Sin conexión'); return defaultData(); }
+}
+async function saveData() {
+  sync('syncing','Guardando...');
+  try {
+    await writeOD(CFG.fileCot, S.data);
+    sync('ok','Guardado ✓');
+    setTimeout(() => sync('ok','Sincronizado'), 3000);
+  } catch { sync('error','Error al guardar'); }
+}
+function scheduleSave() {
+  if (S.saveTimer) clearTimeout(S.saveTimer);
+  S.saveTimer = setTimeout(saveData, 1500);
+}
+function sync(status, text) {
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  dot.className = 'sync-dot' + (status==='syncing' ? ' syncing' : status==='error' ? ' error' : '');
+  txt.textContent = text;
+}
+
+// --- BOOT ---
+async function bootApp(account) {
+  const email = (account.username||'').toLowerCase();
+  const isAdmin = CFG.admins.map(e=>e.toLowerCase()).includes(email);
+  S.user = account;
+  S.role = isAdmin ? 'admin' : 'operador';
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').classList.add('visible');
+  document.getElementById('userName').textContent = account.name || account.username;
+  document.getElementById('userAvatar').textContent = (account.name || account.username)[0].toUpperCase();
+  document.getElementById('userRoleLbl').innerHTML = `<span class="badge b-${S.role}">${isAdmin?'Admin':'Operador'}</span>`;
+
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
+
+  S.data = await loadData();
+  navigate(isAdmin ? 'nueva' : 'historial');
+}
+
+// --- NAVIGATE ---
+function navigate(sec) {
+  if (S.role !== 'admin' && sec === 'nueva') sec = 'historial';
+  S.section = sec;
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.sec === sec));
+  document.getElementById('mainContent').innerHTML = SECTIONS[sec] ? SECTIONS[sec]() : '';
+}
+
+// --- HELPERS ---
+const MXN = n => new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:0}).format(n||0);
+const uid  = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+const today = () => new Date().toISOString().split('T')[0];
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.add('hidden'), 3000);
+}
+function openModal(html) {
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.add('hidden'); }
+
+// --- CÁLCULO ---
+function calcCotizacion(f) {
+  const tarifaBase = TARIFAS[f.grua][f.tipo];
+  const factorPer  = PERIODOS[f.periodo];
+  let horas = parseFloat(f.cantidad) || 0;
+
+  // Mínimo 3 horas
+  if (f.tipo !== 'Arrastre' && horas < MIN_HRS) horas = MIN_HRS;
+
+  let subtotalGrua = 0;
+  if (f.tipo === 'Arrastre' && f.cobrarPorKm) {
+    subtotalGrua = tarifaBase * horas + ARRASTRE_KM * (parseFloat(f.km)||0);
+  } else {
+    subtotalGrua = tarifaBase * horas * factorPer;
+  }
+
+  const subtotalManiob = MANIOBRIST_DIA * (parseFloat(f.maniobristasDias)||0) * (parseInt(f.maniobristasNum)||0);
+  const factorDoc = DOC_FACTOR[f.documentacion] || 0;
+  const subtotalDoc = subtotalGrua * factorDoc;
+  const subtotal = subtotalGrua + subtotalManiob + subtotalDoc;
+  const iva = subtotal * IVA;
+  const total = subtotal + iva;
+  const anticipo = total * 0.5;
+
+  return { tarifaBase, horas, subtotalGrua, subtotalManiob, subtotalDoc, subtotal, iva, total, anticipo };
+}
+
+// ============================================================
+// SECCIÓN: NUEVA COTIZACIÓN
+// ============================================================
+function renderNueva() {
+  const clientes = S.data.clientes || [];
+  const clienteOpts = clientes.map(c => `<option value="${c.id}">${c.nombre}${c.empresa?' — '+c.empresa:''}</option>`).join('');
+
+  return `
+  <div class="sec-header">
+    <div class="sec-title">NUEVA COTIZACIÓN</div>
+    <div class="sec-sub">Configura el servicio y genera el PDF</div>
+  </div>
+
+  <div class="g2">
+    <!-- FORMULARIO -->
+    <div>
+      <div class="card mb20">
+        <div class="card-title">👤 CLIENTE</div>
+        <div class="fg">
+          <label class="lbl">Seleccionar cliente existente</label>
+          <select id="qCliente" class="sel" onchange="autoFillCliente(this.value)">
+            <option value="">— Nuevo cliente —</option>
+            ${clienteOpts}
+          </select>
+        </div>
+        <div class="fg"><label class="lbl">Nombre / Empresa</label><input id="qNombre" class="inp" placeholder="Nombre o razón social"></div>
+        <div class="g2 g12">
+          <div class="fg"><label class="lbl">RFC</label><input id="qRFC" class="inp" placeholder="RFC"></div>
+          <div class="fg"><label class="lbl">Teléfono</label><input id="qTel" class="inp" placeholder="442 000 0000"></div>
+        </div>
+        <div class="fg"><label class="lbl">Email</label><input id="qEmail" class="inp" type="email" placeholder="correo@empresa.com"></div>
+      </div>
+
+      <div class="card mb20">
+        <div class="card-title">🏗️ SERVICIO</div>
+        <div class="g2 g12">
+          <div class="fg">
+            <label class="lbl">Grúa</label>
+            <select id="qGrua" class="sel" onchange="recalc()">
+              <option value="T1">T1 — 14 ton</option>
+              <option value="T2">T2 — 23 ton</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="lbl">Tipo de tarifa</label>
+            <select id="qTipo" class="sel" onchange="toggleArrastre();recalc()">
+              <option value="Ligero">Ligero</option>
+              <option value="Pesado">Pesado</option>
+              <option value="Arrastre">Arrastre foráneo</option>
+            </select>
+          </div>
+        </div>
+        <div class="g2 g12">
+          <div class="fg">
+            <label class="lbl">Período</label>
+            <select id="qPeriodo" class="sel" onchange="recalc()">
+              <option value="Hora">Por hora (×1.0)</option>
+              <option value="Día">Por día (×0.9)</option>
+              <option value="Semana">Por semana (×0.8)</option>
+              <option value="Mes">Por mes (×0.7)</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="lbl">Cantidad de horas/días</label>
+            <input id="qCantidad" type="number" step="0.5" min="1" value="3" class="inp" oninput="recalc()">
+          </div>
+        </div>
+
+        <!-- Arrastre foráneo -->
+        <div id="arrOpts" class="hidden">
+          <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px;margin-bottom:14px;">
+            <div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">⚠ Arrastre foráneo — cobrar por HORAS o por KM, nunca los dos</div>
+            <div class="flex g12">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-dark);cursor:pointer;">
+                <input type="radio" name="arrMode" value="hrs" checked onchange="recalc()"> Por horas
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-dark);cursor:pointer;">
+                <input type="radio" name="arrMode" value="km" onchange="recalc()"> Por kilómetros ($${ARRASTRE_KM}/km)
+              </label>
+            </div>
+            <div class="fg mt8" id="kmField" style="display:none;">
+              <label class="lbl">Kilómetros recorridos</label>
+              <input id="qKm" type="number" class="inp" placeholder="0" oninput="recalc()">
+            </div>
+          </div>
+        </div>
+
+        <div class="g2 g12">
+          <div class="fg">
+            <label class="lbl">Maniobristras</label>
+            <input id="qManiobNum" type="number" min="0" value="0" class="inp" oninput="recalc()" placeholder="Cantidad">
+          </div>
+          <div class="fg">
+            <label class="lbl">Días de maniobrisras</label>
+            <input id="qManiobDias" type="number" min="0" value="0" class="inp" oninput="recalc()" placeholder="Días">
+          </div>
+        </div>
+
+        <div class="fg">
+          <label class="lbl">Documentación de acceso</label>
+          <select id="qDoc" class="sel" onchange="recalc()">
+            <option value="Básico">Básico — sin cargo</option>
+            <option value="Medios">Medios — +15%</option>
+            <option value="Especial">Especial — +30%</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label class="lbl">Descripción / Notas</label>
+          <textarea id="qNotas" class="textarea inp" rows="3" placeholder="Descripción del trabajo, lugar, observaciones..."></textarea>
+        </div>
+
+        <div class="fg">
+          <label class="lbl">Fecha del servicio</label>
+          <input id="qFecha" type="date" class="inp" value="${today()}">
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTADO -->
+    <div>
+      <div class="result-box mb20" id="resultBox">
+        <div style="font-family:'Orbitron';font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.5);margin-bottom:16px;">RESUMEN DE COTIZACIÓN</div>
+
+        <div class="result-row">
+          <span>Grúa y tarifa</span>
+          <span id="rTarifa">—</span>
+        </div>
+        <div class="result-row">
+          <span>Servicio grúa</span>
+          <span id="rGrua">—</span>
+        </div>
+        <div class="result-row" id="rManRow">
+          <span>Maniobristras</span>
+          <span id="rMan">—</span>
+        </div>
+        <div class="result-row" id="rDocRow">
+          <span>Documentación</span>
+          <span id="rDoc">—</span>
+        </div>
+        <div class="result-row" style="padding-top:12px;">
+          <span style="font-weight:600;">Subtotal</span>
+          <span id="rSub" style="font-weight:600;">—</span>
+        </div>
+        <div class="result-row">
+          <span>IVA 16%</span>
+          <span id="rIva">—</span>
+        </div>
+        <div class="result-row" style="border:none;padding-top:16px;">
+          <span style="font-size:13px;color:rgba(255,255,255,0.7);">TOTAL</span>
+          <div class="result-total" id="rTotal">—</div>
+        </div>
+        <div style="background:rgba(245,158,11,0.15);border-radius:10px;padding:12px 16px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.5px;">Anticipo requerido (50%)</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px;">A pagar antes del servicio</div>
+          </div>
+          <div class="result-anticipo" id="rAnticipo">—</div>
+        </div>
+
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+          <button class="btn btn-success btn-w100" onclick="generarPDF()">📄 Generar PDF</button>
+          <button class="btn btn-primary btn-w100" onclick="guardarCotizacion()">💾 Guardar cotización</button>
+          <button class="btn btn-outline btn-w100" style="color:#fff;border-color:rgba(255,255,255,0.3);" onclick="abrirEmail()">✉️ Enviar por email</button>
+        </div>
+      </div>
+
+      <!-- Info tarifa mínima -->
+      <div class="card-dark" style="font-size:12px;color:var(--text-muted);line-height:1.8;">
+        <div style="font-family:'Orbitron';font-size:9px;letter-spacing:2px;color:rgba(255,255,255,0.4);margin-bottom:8px;">REGLAS OPERATIVAS</div>
+        <div>⏱ Tarifa mínima: <strong style="color:#fff;">3 horas</strong></div>
+        <div>💳 Anticipo: <strong style="color:#fff;">50%</strong> antes del servicio</div>
+        <div>🚛 Arrastre foráneo: horas <strong style="color:#fff;">O</strong> kilómetros, nunca ambos</div>
+        <div>📋 Maniobristras: <strong style="color:#fff;">$${MANIOBRIST_DIA}/día/persona</strong></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleArrastre() {
+  const tipo = document.getElementById('qTipo').value;
+  const arrOpts = document.getElementById('arrOpts');
+  arrOpts.classList.toggle('hidden', tipo !== 'Arrastre');
+}
+
+document.addEventListener('change', function(e) {
+  if (e.target.name === 'arrMode') {
+    document.getElementById('kmField').style.display = e.target.value === 'km' ? 'block' : 'none';
+    recalc();
+  }
+});
+
+function getFormData() {
+  const arrMode = document.querySelector('input[name="arrMode"]:checked');
+  return {
+    grua:           document.getElementById('qGrua')?.value || 'T1',
+    tipo:           document.getElementById('qTipo')?.value || 'Ligero',
+    periodo:        document.getElementById('qPeriodo')?.value || 'Hora',
+    cantidad:       document.getElementById('qCantidad')?.value || 3,
+    maniobristasNum:document.getElementById('qManiobNum')?.value || 0,
+    maniobristasDias:document.getElementById('qManiobDias')?.value || 0,
+    documentacion:  document.getElementById('qDoc')?.value || 'Básico',
+    cobrarPorKm:    arrMode?.value === 'km',
+    km:             document.getElementById('qKm')?.value || 0
+  };
+}
+
+function recalc() {
+  try {
+    const f = getFormData();
+    const r = calcCotizacion(f);
+    document.getElementById('rTarifa').textContent   = `${f.grua} ${f.tipo} — ${MXN(f.tarifaBase||TARIFAS[f.grua][f.tipo])}/hr`;
+    document.getElementById('rGrua').textContent     = MXN(r.subtotalGrua);
+    document.getElementById('rMan').textContent      = MXN(r.subtotalManiob);
+    document.getElementById('rDoc').textContent      = MXN(r.subtotalDoc);
+    document.getElementById('rSub').textContent      = MXN(r.subtotal);
+    document.getElementById('rIva').textContent      = MXN(r.iva);
+    document.getElementById('rTotal').textContent    = MXN(r.total);
+    document.getElementById('rAnticipo').textContent = MXN(r.anticipo);
+    if (document.getElementById('rManRow')) document.getElementById('rManRow').style.display = r.subtotalManiob > 0 ? '' : 'none';
+    if (document.getElementById('rDocRow')) document.getElementById('rDocRow').style.display = r.subtotalDoc > 0 ? '' : 'none';
+  } catch(e) {}
+}
+
+function autoFillCliente(id) {
+  const c = (S.data.clientes||[]).find(x=>x.id===id);
+  if (!c) return;
+  document.getElementById('qNombre').value = c.nombre || '';
+  document.getElementById('qRFC').value    = c.rfc    || '';
+  document.getElementById('qTel').value    = c.tel    || '';
+  document.getElementById('qEmail').value  = c.email  || '';
+}
+
+function getCotizacionData() {
+  const f = getFormData();
+  const r = calcCotizacion(f);
+  return {
+    id:          uid(),
+    folio:       'COT-' + Date.now().toString().slice(-6),
+    fecha:       document.getElementById('qFecha')?.value || today(),
+    estado:      'GENERADA',
+    cliente: {
+      id:     document.getElementById('qCliente')?.value || '',
+      nombre: document.getElementById('qNombre')?.value  || '',
+      rfc:    document.getElementById('qRFC')?.value     || '',
+      tel:    document.getElementById('qTel')?.value     || '',
+      email:  document.getElementById('qEmail')?.value   || ''
+    },
+    servicio: f,
+    calculo:  r,
+    notas:    document.getElementById('qNotas')?.value || ''
+  };
+}
+
+function guardarCotizacion() {
+  const cot = getCotizacionData();
+  if (!cot.cliente.nombre) { toast('Ingresa el nombre del cliente'); return; }
+  S.data.cotizaciones.unshift(cot);
+  scheduleSave();
+  toast(`Cotización ${cot.folio} guardada`);
+}
+
+// --- PDF ---
+function generarPDF() {
+  const cot = getCotizacionData();
+  if (!cot.cliente.nombre) { toast('Ingresa el nombre del cliente'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const W = 210, M = 18;
+
+  // Header gradient background
+  doc.setFillColor(10, 22, 40);
+  doc.rect(0, 0, W, 42, 'F');
+  doc.setFillColor(26, 61, 107);
+  doc.rect(0, 28, W, 14, 'F');
+
+  // Logo placeholder circle
+  doc.setFillColor(255,255,255);
+  doc.circle(M+8, 18, 8, 'F');
+  doc.setFontSize(14);
+  doc.setTextColor(10,22,40);
+  doc.setFont('helvetica','bold');
+  doc.text('M', M+5.5, 21.5);
+
+  // Company name
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica','bold');
+  doc.text('METARCO', M+22, 15);
+  doc.setFontSize(8);
+  doc.setFont('helvetica','normal');
+  doc.text('S.A. DE C.V.  ·  RFC: MET2001285G8', M+22, 21);
+  doc.setFontSize(7);
+  doc.text('Cerro de la Bufa 103, Col. Colinas del Cimatario, CP 76090, Querétaro, Qro.', M+22, 26);
+  doc.text('Tel: 442 669 6143  ·  contabilidad@metarco.com.mx', M+22, 30);
+
+  // Folio & fecha
+  doc.setFontSize(8);
+  doc.setTextColor(255,255,255);
+  doc.text(cot.folio, W-M-30, 15);
+  doc.text('Fecha: '+cot.fecha, W-M-30, 20);
+  doc.text('Estado: '+cot.estado, W-M-30, 25);
+
+  // COTIZACIÓN title
+  doc.setFontSize(18);
+  doc.setFont('helvetica','bold');
+  doc.setTextColor(255,255,255);
+  doc.text('COTIZACIÓN', M+22, 37);
+
+  let y = 52;
+
+  // Cliente box
+  doc.setFillColor(240,244,248);
+  doc.roundedRect(M, y, W-M*2, 28, 3, 3, 'F');
+  doc.setTextColor(10,22,40);
+  doc.setFontSize(8);
+  doc.setFont('helvetica','bold');
+  doc.text('DATOS DEL CLIENTE', M+4, y+6);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9);
+  doc.text(cot.cliente.nombre || '—', M+4, y+13);
+  doc.setFontSize(8);
+  doc.setTextColor(100,116,139);
+  doc.text(`RFC: ${cot.cliente.rfc||'—'}  ·  Tel: ${cot.cliente.tel||'—'}  ·  Email: ${cot.cliente.email||'—'}`, M+4, y+20);
+  if (cot.notas) doc.text(`Notas: ${cot.notas.substring(0,80)}`, M+4, y+26);
+
+  y += 36;
+
+  // Servicio header
+  doc.setFillColor(10,22,40);
+  doc.rect(M, y, W-M*2, 8, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(8);
+  doc.text('DETALLE DEL SERVICIO', M+4, y+5.5);
+  y += 8;
+
+  const rows = [
+    ['Grúa', `${cot.servicio.grua} — TEREX ${cot.servicio.grua==='T1'?'TC2863 (14 ton)':'BT4792 (23 ton)'}`],
+    ['Tipo de tarifa', `${cot.servicio.tipo}`],
+    ['Período', `${cot.servicio.periodo}`],
+    ['Horas / Duración', `${cot.calculo.horas} ${cot.servicio.periodo}(s)`],
+    ['Tarifa base', MXN(TARIFAS[cot.servicio.grua][cot.servicio.tipo]) + '/hr'],
+    ['Servicio grúa', MXN(cot.calculo.subtotalGrua)],
+  ];
+  if (cot.calculo.subtotalManiob > 0) rows.push(['Maniobristras', MXN(cot.calculo.subtotalManiob)]);
+  if (cot.calculo.subtotalDoc > 0) rows.push([`Documentación (${cot.servicio.documentacion})`, MXN(cot.calculo.subtotalDoc)]);
+
+  rows.forEach((row, i) => {
+    doc.setFillColor(i%2===0 ? 255 : 248, i%2===0 ? 255 : 250, i%2===0 ? 255 : 252);
+    doc.rect(M, y, W-M*2, 7, 'F');
+    doc.setTextColor(100,116,139);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8);
+    doc.text(row[0], M+4, y+5);
+    doc.setTextColor(26,26,46);
+    doc.setFont('helvetica','bold');
+    doc.text(row[1], W-M-4, y+5, {align:'right'});
+    y += 7;
+  });
+
+  y += 4;
+
+  // Totales
+  doc.setFillColor(240,244,248);
+  doc.rect(W-M-70, y, 70, 7, 'F');
+  doc.setTextColor(100,116,139); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.text('Subtotal', W-M-66, y+5);
+  doc.setTextColor(26,26,46); doc.setFont('helvetica','bold');
+  doc.text(MXN(cot.calculo.subtotal), W-M-4, y+5, {align:'right'});
+  y += 7;
+
+  doc.setFillColor(248,250,252);
+  doc.rect(W-M-70, y, 70, 7, 'F');
+  doc.setTextColor(100,116,139); doc.setFont('helvetica','normal');
+  doc.text('IVA 16%', W-M-66, y+5);
+  doc.setTextColor(26,26,46); doc.setFont('helvetica','bold');
+  doc.text(MXN(cot.calculo.iva), W-M-4, y+5, {align:'right'});
+  y += 7;
+
+  doc.setFillColor(10,22,40);
+  doc.rect(W-M-70, y, 70, 10, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('TOTAL', W-M-66, y+7);
+  doc.setFontSize(12);
+  doc.text(MXN(cot.calculo.total), W-M-4, y+7, {align:'right'});
+  y += 10;
+
+  doc.setFillColor(245,158,11);
+  doc.rect(W-M-70, y, 70, 9, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text('ANTICIPO (50%)', W-M-66, y+6);
+  doc.setFontSize(10);
+  doc.text(MXN(cot.calculo.anticipo), W-M-4, y+6, {align:'right'});
+  y += 16;
+
+  // Datos bancarios
+  doc.setFillColor(240,244,248);
+  doc.roundedRect(M, y, W-M*2, 28, 3, 3, 'F');
+  doc.setTextColor(10,22,40); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text('DATOS PARA TRANSFERENCIA', M+4, y+7);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(26,26,46);
+  doc.text('BANREGIO  |  Cuenta: 166972290012  |  CLABE: 058680000005178600', M+4, y+14);
+  doc.text('BBVA       |  Cuenta: 0122979993      |  CLABE: 012680001229799936', M+4, y+20);
+  doc.setTextColor(100,116,139); doc.setFontSize(7);
+  doc.text('A nombre de: METARCO S.A. DE C.V.  ·  RFC: MET2001285G8', M+4, y+26);
+
+  y += 34;
+
+  // Términos
+  doc.setFontSize(7); doc.setTextColor(150,150,150); doc.setFont('helvetica','normal');
+  const terminos = 'Vigencia de cotización: 15 días. Anticipo del 50% requerido antes del inicio del servicio. Precios en MXN. IVA incluido en total. ' +
+    'Tarifa mínima de 3 horas. METARCO S.A. de C.V. se reserva el derecho de ajustar la tarifa en caso de condiciones especiales no contempladas en esta cotización.';
+  const lines = doc.splitTextToSize(terminos, W-M*2);
+  doc.text(lines, M, y);
+
+  // Footer
+  doc.setFillColor(10,22,40);
+  doc.rect(0, 282, W, 15, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.text('METARCO S.A. de C.V.  ·  442 669 6143  ·  contabilidad@metarco.com.mx  ·  Querétaro, Qro.', W/2, 291, {align:'center'});
+
+  doc.save(`${cot.folio}_${cot.cliente.nombre.replace(/\s+/g,'_')}.pdf`);
+  toast('PDF generado correctamente');
+}
+
+// --- EMAIL ---
+function abrirEmail() {
+  const nombre = document.getElementById('qNombre')?.value || '';
+  const email  = document.getElementById('qEmail')?.value || '';
+  const f = getFormData();
+  const r = calcCotizacion(f);
+  const folio = 'COT-' + Date.now().toString().slice(-6);
+
+  openModal(`
+    <div class="modal-title">✉️ ENVIAR POR EMAIL</div>
+    <div class="fg"><label class="lbl">Para</label><input id="eTo" class="inp" value="${email}" placeholder="correo@empresa.com"></div>
+    <div class="fg"><label class="lbl">CC</label><input id="eCc" class="inp" placeholder="Copia opcional"></div>
+    <div class="fg"><label class="lbl">Asunto</label><input id="eAsunto" class="inp" value="Cotización de servicios de grúa — METARCO · ${folio}"></div>
+    <div class="fg">
+      <label class="lbl">Mensaje</label>
+      <textarea id="eCuerpo" class="textarea inp" rows="8">Estimado/a ${nombre||'cliente'},
+
+Por medio del presente le hacemos llegar nuestra cotización por servicios de grúa:
+
+Folio: ${folio}
+Grúa: ${f.grua} — Tipo: ${f.tipo}
+Total: ${MXN(r.total)} (IVA incluido)
+Anticipo requerido: ${MXN(r.anticipo)}
+
+Adjunto encontrará el PDF con el detalle completo de la cotización.
+
+Quedamos a sus órdenes para cualquier duda o aclaración.
+
+Atentamente,
+METARCO S.A. de C.V.
+Tel: 442 669 6143
+contabilidad@metarco.com.mx</textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="enviarEmail()">Abrir en correo</button>
+    </div>`);
+}
+function enviarEmail() {
+  const to     = document.getElementById('eTo').value;
+  const cc     = document.getElementById('eCc').value;
+  const asunto = encodeURIComponent(document.getElementById('eAsunto').value);
+  const cuerpo = encodeURIComponent(document.getElementById('eCuerpo').value);
+  const href   = `mailto:${to}?${cc?'cc='+cc+'&':''}subject=${asunto}&body=${cuerpo}`;
+  window.open(href);
+  closeModal();
+}
+
+// ============================================================
+// SECCIÓN: HISTORIAL CRM
+// ============================================================
+function renderHistorial() {
+  const cots = S.data.cotizaciones || [];
+  const estados = ['GENERADA','ACEPTADA','EJECUTADA','COBRADA','CANCELADA'];
+  const totales = {
+    GENERADA: cots.filter(c=>c.estado==='GENERADA').length,
+    ACEPTADA: cots.filter(c=>c.estado==='ACEPTADA').length,
+    EJECUTADA:cots.filter(c=>c.estado==='EJECUTADA').length,
+    COBRADA:  cots.filter(c=>c.estado==='COBRADA').length,
+  };
+  const totalFacturado = cots.filter(c=>['EJECUTADA','COBRADA'].includes(c.estado)).reduce((t,c)=>t+(c.calculo?.total||0),0);
+
+  return `
+  <div class="sec-header">
+    <div class="flex jb ic">
+      <div><div class="sec-title">HISTORIAL CRM</div><div class="sec-sub">Seguimiento de cotizaciones y estados</div></div>
+      <div class="flex g8">
+        <button class="btn btn-outline" onclick="exportExcel()" style="font-size:12px;">📊 Excel</button>
+        <button class="btn btn-outline admin-only" onclick="exportDashboard()" style="font-size:12px;">🏗️ Exportar al Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="g4 mb20">
+    <div class="stat-card"><div class="stat-val" style="color:#60a5fa;">${totales.GENERADA}</div><div class="stat-lbl">Generadas</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#22c55e;">${totales.ACEPTADA}</div><div class="stat-lbl">Aceptadas</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#f59e0b;">${totales.EJECUTADA}</div><div class="stat-lbl">Ejecutadas</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#10b981;font-size:16px;">${MXN(totalFacturado)}</div><div class="stat-lbl">Facturado</div></div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Folio</th><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Estado</th><th class="tr">Total</th><th></th></tr></thead>
+        <tbody>
+          ${!cots.length ? `<tr class="tr-empty"><td colspan="7">Sin cotizaciones. Crea la primera desde "Nueva cotización".</td></tr>` :
+            cots.map(c => `
+            <tr>
+              <td style="font-family:'Orbitron';font-size:11px;font-weight:700;">${c.folio||'—'}</td>
+              <td>${c.fecha||'—'}</td>
+              <td style="font-weight:500;">${c.cliente?.nombre||'—'}</td>
+              <td><span class="badge b-${(c.servicio?.grua||'').toLowerCase()}">${c.servicio?.grua||'—'}</span> ${c.servicio?.tipo||'—'}</td>
+              <td>
+                <select class="sel" style="padding:4px 8px;font-size:11px;width:auto;" onchange="cambiarEstado('${c.id}',this.value)">
+                  ${estados.map(e=>`<option value="${e}" ${c.estado===e?'selected':''}>${e}</option>`).join('')}
+                </select>
+              </td>
+              <td class="tr" style="font-weight:700;">${MXN(c.calculo?.total)}</td>
+              <td class="tr" style="white-space:nowrap;">
+                <button class="btn btn-outline btn-sm" onclick="verPDF('${c.id}')">PDF</button>
+                <button class="btn btn-outline btn-sm admin-only" onclick="deleteCot('${c.id}')">✕</button>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function cambiarEstado(id, estado) {
+  const c = S.data.cotizaciones.find(x=>x.id===id);
+  if (c) { c.estado = estado; scheduleSave(); toast('Estado actualizado'); }
+}
+function deleteCot(id) {
+  if (!confirm('¿Eliminar esta cotización?')) return;
+  S.data.cotizaciones = S.data.cotizaciones.filter(x=>x.id!==id);
+  scheduleSave(); navigate('historial'); toast('Cotización eliminada');
+}
+function verPDF(id) {
+  const c = S.data.cotizaciones.find(x=>x.id===id);
+  if (!c) return;
+  // Re-generate PDF from saved data
+  toast('Regenerando PDF...');
+}
+
+// Export to Excel
+function exportExcel() {
+  const cots = S.data.cotizaciones || [];
+  const rows = cots.map(c => ({
+    Folio: c.folio, Fecha: c.fecha, Estado: c.estado,
+    Cliente: c.cliente?.nombre, RFC: c.cliente?.rfc,
+    Grúa: c.servicio?.grua, Tipo: c.servicio?.tipo,
+    Horas: c.calculo?.horas, Subtotal: c.calculo?.subtotal,
+    IVA: c.calculo?.iva, Total: c.calculo?.total, Anticipo: c.calculo?.anticipo
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cotizaciones');
+  XLSX.writeFile(wb, `METARCO_Cotizaciones_${today()}.xlsx`);
+  toast('Excel exportado');
+}
+
+// Export to Dashboard (writes to Control de Grúas JSON)
+async function exportDashboard() {
+  const ejecutadas = S.data.cotizaciones.filter(c => ['EJECUTADA','COBRADA'].includes(c.estado));
+  if (!ejecutadas.length) { toast('No hay servicios ejecutados o cobrados para exportar'); return; }
+
+  sync('syncing','Exportando al Dashboard...');
+  try {
+    let dashData = await readOD(CFG.fileDash);
+    if (!dashData) { toast('No se encontró el archivo del Dashboard en OneDrive'); sync('error','Error'); return; }
+
+    const existingIds = new Set((dashData.servicios||[]).map(s=>s.cotId));
+    let nuevos = 0;
+
+    ejecutadas.forEach(c => {
+      if (!existingIds.has(c.id)) {
+        dashData.servicios = dashData.servicios || [];
+        dashData.servicios.unshift({
+          id: uid(), cotId: c.id,
+          fecha: c.fecha, grua: c.servicio?.grua,
+          cliente: c.cliente?.nombre, tipo: c.servicio?.tipo,
+          horas: c.calculo?.horas || 0, km: 0,
+          ingreso: c.calculo?.total || 0, costo: 0
+        });
+        nuevos++;
+      }
+    });
+
+    await writeOD(CFG.fileDash, dashData);
+    sync('ok','Sincronizado');
+    toast(`${nuevos} servicio(s) exportado(s) al Dashboard`);
+  } catch(e) {
+    sync('error','Error al exportar');
+    toast('Error al conectar con el Dashboard');
+  }
+}
+
+// ============================================================
+// SECCIÓN: CLIENTES
+// ============================================================
+function renderClientes() {
+  const clientes = S.data.clientes || [];
+  return `
+  <div class="sec-header">
+    <div class="flex jb ic">
+      <div><div class="sec-title">DIRECTORIO DE CLIENTES</div><div class="sec-sub">${clientes.length} clientes registrados</div></div>
+      <button class="btn btn-primary admin-only" onclick="addCliente()">+ Agregar cliente</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table>
+      <thead><tr><th>Nombre / Empresa</th><th>RFC</th><th>Teléfono</th><th>Email</th><th>Cotizaciones</th><th></th></tr></thead>
+      <tbody>
+        ${!clientes.length ? `<tr class="tr-empty"><td colspan="6">Sin clientes registrados.</td></tr>` :
+          clientes.map(c => {
+            const numCots = (S.data.cotizaciones||[]).filter(x=>x.cliente?.id===c.id).length;
+            return `
+            <tr>
+              <td style="font-weight:600;">${c.nombre||'—'}<br><span style="font-size:11px;color:#64748b;font-weight:400;">${c.empresa||''}</span></td>
+              <td style="color:#64748b;">${c.rfc||'—'}</td>
+              <td>${c.tel||'—'}</td>
+              <td style="color:#64748b;">${c.email||'—'}</td>
+              <td><span class="badge b-generada">${numCots}</span></td>
+              <td class="tr">
+                <button class="btn btn-outline btn-sm admin-only" onclick="editCliente('${c.id}')">Editar</button>
+              </td>
+            </tr>`;
+          }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function addCliente() {
+  openModal(`
+    <div class="modal-title">NUEVO CLIENTE</div>
+    <div class="fg"><label class="lbl">Nombre / Contacto</label><input id="_cn" class="inp" placeholder="Nombre completo"></div>
+    <div class="fg"><label class="lbl">Empresa</label><input id="_ce" class="inp" placeholder="Razón social"></div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">RFC</label><input id="_cr" class="inp" placeholder="RFC"></div>
+      <div class="fg"><label class="lbl">Teléfono</label><input id="_ct" class="inp" placeholder="442 000 0000"></div>
+    </div>
+    <div class="fg"><label class="lbl">Email</label><input id="_cem" class="inp" type="email" placeholder="correo@empresa.com"></div>
+    <div class="fg"><label class="lbl">Dirección</label><input id="_cd" class="inp" placeholder="Dirección completa"></div>
+    <div class="fg"><label class="lbl">Notas</label><textarea id="_cno" class="textarea inp" rows="2" placeholder="Preferencias, condiciones especiales..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCliente()">Guardar</button>
+    </div>`);
+}
+
+function saveCliente() {
+  const c = {
+    id:uid(), nombre:document.getElementById('_cn').value,
+    empresa:document.getElementById('_ce').value, rfc:document.getElementById('_cr').value,
+    tel:document.getElementById('_ct').value, email:document.getElementById('_cem').value,
+    direccion:document.getElementById('_cd').value, notas:document.getElementById('_cno').value
+  };
+  if (!c.nombre) { toast('Ingresa el nombre'); return; }
+  S.data.clientes.push(c);
+  closeModal(); scheduleSave(); navigate('clientes'); toast('Cliente agregado');
+}
+
+function editCliente(id) {
+  const c = S.data.clientes.find(x=>x.id===id);
+  openModal(`
+    <div class="modal-title">EDITAR CLIENTE</div>
+    <div class="fg"><label class="lbl">Nombre</label><input id="_cn" class="inp" value="${c.nombre||''}"></div>
+    <div class="fg"><label class="lbl">Empresa</label><input id="_ce" class="inp" value="${c.empresa||''}"></div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">RFC</label><input id="_cr" class="inp" value="${c.rfc||''}"></div>
+      <div class="fg"><label class="lbl">Teléfono</label><input id="_ct" class="inp" value="${c.tel||''}"></div>
+    </div>
+    <div class="fg"><label class="lbl">Email</label><input id="_cem" class="inp" value="${c.email||''}"></div>
+    <div class="fg"><label class="lbl">Notas</label><textarea id="_cno" class="textarea inp" rows="2">${c.notas||''}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="deleteCliente('${id}')">Eliminar</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="updCliente('${id}')">Guardar</button>
+    </div>`);
+}
+
+function updCliente(id) {
+  const c = S.data.clientes.find(x=>x.id===id);
+  c.nombre=document.getElementById('_cn').value; c.empresa=document.getElementById('_ce').value;
+  c.rfc=document.getElementById('_cr').value;    c.tel=document.getElementById('_ct').value;
+  c.email=document.getElementById('_cem').value; c.notas=document.getElementById('_cno').value;
+  closeModal(); scheduleSave(); navigate('clientes'); toast('Cliente actualizado');
+}
+function deleteCliente(id) {
+  S.data.clientes = S.data.clientes.filter(x=>x.id!==id);
+  closeModal(); scheduleSave(); navigate('clientes'); toast('Cliente eliminado');
+}
+
+// ============================================================
+const SECTIONS = { nueva:renderNueva, historial:renderHistorial, clientes:renderClientes };
+
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+});
+
+// Init
+(async () => {
+  await msal_app.initialize();
+  const accounts = msal_app.getAllAccounts();
+  if (accounts.length > 0) await bootApp(accounts[0]);
+  // Auto-recalc on load
+  setTimeout(recalc, 500);
+})();
+</script>
+</body>
+</html>
