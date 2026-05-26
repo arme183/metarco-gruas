@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>METARCO · Control de Grúas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://alcdn.msauth.net/browser/3.18.0/js/msal-browser.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-dark:       #0a1628;
+      --bg-mid:        #1a3d6b;
+      --bg-gradient:   linear-gradient(135deg, #0a1628 0%, #1a3d6b 100%);
+      --card-bg:       #ffffff;
+      --card-radius:   16px;
+      --card-shadow:   0 4px 24px rgba(0,0,0,0.28);
+      --card-padding:  24px;
+      --text-light:    #ffffff;
+      --text-muted:    rgba(255,255,255,0.6);
+      --text-dark:     #1a1a2e;
+      --text-gray:     #64748b;
+      --blue-ms:       #0078d4;
+      --blue-hover:    #106ebe;
+      --color-ok:      #22c55e;
+      --color-warn:    #f59e0b;
+      --color-danger:  #ef4444;
+      --color-info:    #3b82f6;
+      --border-light:  rgba(255,255,255,0.12);
+      --border-card:   rgba(0,0,0,0.08);
+      --font-brand:    'Orbitron', sans-serif;
+      --font-ui:       'Inter', sans-serif;
+      --sidebar-w:     220px;
+      --header-h:      64px;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg-gradient);
+      font-family: var(--font-ui);
+      color: var(--text-light);
+      line-height: 1.5;
+    }
+
+    /* ===== LOGIN ===== */
+    #loginScreen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .login-card {
+      background: var(--card-bg);
+      border-radius: var(--card-radius);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+      padding: 44px 36px;
+      width: 100%;
+      max-width: 360px;
+      color: var(--text-dark);
+      text-align: center;
+    }
+    .login-logo {
+      width: 76px; height: 76px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0a1628, #1a3d6b);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      border: 3px solid rgba(0,120,212,0.3);
+      box-shadow: 0 0 30px rgba(0,120,212,0.2);
+    }
+
+    /* ===== APP SHELL ===== */
+    #appShell { display: none; height: 100vh; flex-direction: column; }
+    #appShell.visible { display: flex; }
+
+    /* ===== HEADER ===== */
+    .app-header {
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      background: rgba(0,0,0,0.25);
+      border-bottom: 1px solid var(--border-light);
+      flex-shrink: 0;
+      backdrop-filter: blur(8px);
+    }
+    .header-brand { display: flex; align-items: center; gap: 14px; }
+    .header-logo-box {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg,#0a1628,#1a3d6b);
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .brand-name {
+      font-family: var(--font-brand); font-weight: 700;
+      font-size: 14px; letter-spacing: 3px;
+    }
+    .brand-sub {
+      font-family: var(--font-brand); font-weight: 700;
+      font-size: 9px; letter-spacing: 2px; color: var(--text-muted);
+    }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .sync-pill {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--text-muted);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border-light);
+      border-radius: 20px;
+      padding: 5px 12px;
+    }
+    .sync-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--color-ok);
+      transition: background 0.3s;
+    }
+    .sync-dot.syncing { background: var(--color-warn); animation: blink 1s infinite; }
+    .sync-dot.error   { background: var(--color-danger); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .user-chip {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border-light);
+      border-radius: 24px;
+      padding: 5px 14px 5px 6px;
+    }
+    .user-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--blue-ms);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 12px; color: #fff;
+    }
+    .user-name { font-size: 13px; font-weight: 600; }
+    .user-role { font-size: 10px; color: var(--text-muted); }
+
+    /* ===== LAYOUT ===== */
+    .app-body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      background: rgba(0,0,0,0.2);
+      border-right: 1px solid var(--border-light);
+      padding: 20px 12px;
+      overflow-y: auto;
+    }
+    .nav-label {
+      font-family: var(--font-brand);
+      font-size: 8px; letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      padding: 10px 12px 6px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px; font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none; background: transparent;
+      width: 100%; text-align: left;
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.08); color: var(--text-light); }
+    .nav-item.active { background: var(--blue-ms); color: #fff; }
+    .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+
+    /* ===== MAIN ===== */
+    .main-content { flex: 1; overflow-y: auto; padding: 28px 32px; }
+
+    .sec-header { margin-bottom: 24px; }
+    .sec-title {
+      font-family: var(--font-brand); font-weight: 700;
+      font-size: 17px; letter-spacing: 3px;
+    }
+    .sec-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--card-radius);
+      box-shadow: var(--card-shadow);
+      padding: var(--card-padding);
+      color: var(--text-dark);
+    }
+    .card-dark {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border-light);
+      border-radius: var(--card-radius);
+      padding: var(--card-padding);
+    }
+    .card-title {
+      font-family: var(--font-brand); font-weight: 700;
+      font-size: 11px; letter-spacing: 1.5px;
+      color: var(--text-dark);
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-card);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ===== GRID ===== */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+
+    /* ===== STAT CARDS ===== */
+    .stat-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 16px 20px;
+      color: var(--text-dark);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    }
+    .stat-val {
+      font-family: var(--font-brand); font-weight: 900;
+      font-size: 22px; color: var(--text-dark);
+    }
+    .stat-lbl {
+      font-size: 10px; color: var(--text-gray);
+      margin-top: 4px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* ===== TABLES ===== */
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      font-family: var(--font-ui); font-weight: 600;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text-gray);
+      border-bottom: 1px solid var(--border-card);
+      padding: 10px 12px; text-align: left;
+    }
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--border-card);
+      color: var(--text-dark); font-size: 13px;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(0,120,212,0.04); }
+    .tr-empty td { color: #94a3b8; text-align: center; padding: 36px; }
+
+    /* ===== BADGES ===== */
+    .badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-weight: 600; font-size: 10px;
+      letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .b-admin    { background: rgba(59,130,246,0.18); color:#93c5fd; }
+    .b-operador { background: rgba(245,158,11,0.18); color:#fcd34d; }
+    .b-ok       { background: rgba(34,197,94,0.15);  color:#22c55e; }
+    .b-warn     { background: rgba(245,158,11,0.15); color:#f59e0b; }
+    .b-error    { background: rgba(239,68,68,0.15);  color:#ef4444; }
+    .b-t1       { background: rgba(0,120,212,0.15);  color:#60a5fa; }
+    .b-t2       { background: rgba(245,158,11,0.18); color:#fcd34d; }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 7px; border: none; border-radius: 10px;
+      font-family: var(--font-ui); font-weight: 600;
+      font-size: 13px; cursor: pointer; padding: 10px 18px;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-ms {
+      background: var(--blue-ms); color: #fff;
+      width: 100%; padding: 14px 24px; font-size: 15px; border-radius: 12px;
+    }
+    .btn-ms:hover { background: var(--blue-hover); }
+    .btn-primary { background: var(--blue-ms); color: #fff; }
+    .btn-primary:hover { background: var(--blue-hover); }
+    .btn-ghost { background: rgba(255,255,255,0.1); color: var(--text-light); border: 1px solid var(--border-light); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.18); }
+    .btn-outline { background: transparent; color: var(--text-gray); border: 1px solid var(--border-card); }
+    .btn-outline:hover { background: rgba(0,120,212,0.08); color: var(--blue-ms); border-color: var(--blue-ms); }
+    .btn-danger { background: var(--color-danger); color: #fff; }
+    .btn-sm { padding: 5px 11px; font-size: 11px; border-radius: 7px; }
+
+    /* ===== INPUTS ===== */
+    .inp, .sel {
+      width: 100%; padding: 10px 14px;
+      border: 1.5px solid var(--border-card);
+      border-radius: 10px; font-family: var(--font-ui);
+      font-size: 13px; color: var(--text-dark);
+      background: #fff; outline: none;
+      transition: border-color 0.15s;
+    }
+    .inp:focus, .sel:focus { border-color: var(--blue-ms); }
+    .inp::placeholder { color: #94a3b8; }
+    .lbl {
+      font-size: 10px; font-weight: 600; color: var(--text-gray);
+      display: block; margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .fg { margin-bottom: 14px; }
+
+    /* ===== SEMAFORO ===== */
+    .dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      display: inline-block; flex-shrink: 0;
+    }
+    .dot-ok    { background: var(--color-ok); }
+    .dot-warn  { background: var(--color-warn); }
+    .dot-error { background: var(--color-danger); }
+
+    /* ===== PROGRESS ===== */
+    .prog { height: 5px; background: rgba(0,0,0,0.08); border-radius: 3px; overflow:hidden; margin-top:7px; }
+    .prog-fill { height: 100%; border-radius: 3px; background: var(--color-ok); transition: width .3s; }
+    .prog-fill.warn  { background: var(--color-warn); }
+    .prog-fill.error { background: var(--color-danger); }
+
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; backdrop-filter: blur(5px);
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: var(--card-bg);
+      border-radius: var(--card-radius);
+      padding: 28px; width: 100%; max-width: 500px;
+      max-height: 88vh; overflow-y: auto;
+      color: var(--text-dark);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .modal-title {
+      font-family: var(--font-brand); font-size: 12px;
+      font-weight: 700; letter-spacing: 1.5px;
+      margin-bottom: 20px; padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-card);
+    }
+    .modal-actions {
+      display: flex; gap: 10px; justify-content: flex-end;
+      margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid var(--border-card);
+    }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1e293b; color: #fff;
+      padding: 12px 20px; border-radius: 10px;
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 2000; opacity: 1; transition: opacity .3s;
+      border-left: 3px solid var(--blue-ms);
+    }
+    .toast.hidden { display: none; }
+
+    /* ===== UTILS ===== */
+    .flex { display: flex; }
+    .ic { align-items: center; }
+    .jb { justify-content: space-between; }
+    .g8  { gap: 8px; }
+    .g12 { gap: 12px; }
+    .g16 { gap: 16px; }
+    .mt8  { margin-top: 8px; }
+    .mt16 { margin-top: 16px; }
+    .mt20 { margin-top: 20px; }
+    .mb16 { margin-bottom: 16px; }
+    .mb20 { margin-bottom: 20px; }
+    .tr { text-align: right; }
+    .tc { text-align: center; }
+    .w100 { width: 100%; }
+    .hidden { display: none !important; }
+
+    /* ===== ADMIN PROTECTED BADGE ===== */
+    .admin-section-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 10px; color: rgba(0,120,212,0.8);
+      background: rgba(0,120,212,0.08);
+      border: 1px solid rgba(0,120,212,0.2);
+      border-radius: 6px; padding: 2px 8px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ======================================================
+     LOGIN SCREEN
+====================================================== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <span style="font-family:'Orbitron';font-weight:900;font-size:22px;color:#fff;letter-spacing:2px;">M</span>
+    </div>
+    <div style="font-family:'Orbitron';font-weight:900;font-size:22px;color:#1a1a2e;letter-spacing:4px;margin-bottom:4px;">METARCO</div>
+    <div style="font-family:'Orbitron';font-weight:700;font-size:9px;letter-spacing:3px;color:#64748b;margin-bottom:36px;">CONTROL DE GRÚAS</div>
+
+    <button class="btn btn-ms" onclick="login()">
+      <svg width="20" height="20" viewBox="0 0 21 21" aria-hidden="true">
+        <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
+        <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
+        <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
+        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+      </svg>
+      Iniciar sesión con Microsoft
+    </button>
+
+    <div id="loginError" class="hidden" style="margin-top:14px;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:9px;font-size:12px;color:#ef4444;text-align:left;line-height:1.5;"></div>
+
+    <div style="margin-top:28px;font-size:10px;color:#94a3b8;font-family:'Orbitron';letter-spacing:1px;">
+      v2.0 · METARCO S.A. DE C.V. · 2026
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     APP SHELL
+====================================================== -->
+<div id="appShell">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="header-logo-box">
+        <span style="font-family:'Orbitron';font-weight:900;font-size:16px;color:#fff;">M</span>
+      </div>
+      <div>
+        <div class="brand-name">METARCO</div>
+        <div class="brand-sub">CONTROL DE GRÚAS</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="sync-pill">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncText" style="font-size:11px;">Sincronizado</span>
+      </div>
+      <div class="user-chip">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div>
+          <div class="user-name" id="userName">—</div>
+          <div class="user-role" id="userRoleLbl">—</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="logout()">
+        Salir
+      </button>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <div class="app-body">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <div class="nav-label">Operación</div>
+      <button class="nav-item" data-sec="vencimientos" onclick="navigate('vencimientos')">
+        <span class="nav-icon">📋</span> Vencimientos
+      </button>
+      <button class="nav-item" data-sec="servicios" onclick="navigate('servicios')">
+        <span class="nav-icon">🏗️</span> Servicios
+      </button>
+      <button class="nav-item" data-sec="mantenimiento" onclick="navigate('mantenimiento')">
+        <span class="nav-icon">🔧</span> Mantenimiento
+      </button>
+      <button class="nav-item" data-sec="historial" onclick="navigate('historial')">
+        <span class="nav-icon">📁</span> Historial
+      </button>
+      <div class="nav-label admin-only" style="margin-top:8px;">Administración</div>
+      <button class="nav-item admin-only" data-sec="costos" onclick="navigate('costos')">
+        <span class="nav-icon">💰</span> Costos
+      </button>
+      <button class="nav-item admin-only" data-sec="pagos" onclick="navigate('pagos')">
+        <span class="nav-icon">💳</span> Pagos
+      </button>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="main-content" id="mainContent"></main>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast hidden" id="toast"></div>
+
+<script>
+/* ============================================================
+   METARCO · CONTROL DE GRÚAS · v2.0
+   Admin: a.medina@metarco.com.mx
+   OneDrive sync via Microsoft Graph API
+   Roles: Admin (full) / Operador (sin Costos ni Pagos)
+============================================================ */
+
+// --- CONFIG ---
+const CFG = {
+  clientId: '6f7f3d07-3e40-4396-8f76-36d0f818d72d',
+  tenantId: '3fce0139-013b-4c64-a04d-8605a9eb8088',
+  admins:   ['a.medina@metarco.com.mx'],
+  scopes:   ['Files.ReadWrite', 'User.Read'],
+  filePath: 'METARCO/METARCO_Control_Gruas_Datos.json'
+};
+
+// --- MSAL ---
+const msal_app = new msal.PublicClientApplication({
+  auth: {
+    clientId: CFG.clientId,
+    authority: `https://login.microsoftonline.com/${CFG.tenantId}`,
+    redirectUri: 'http://localhost',
+    navigateToLoginRequestUrl: false
+  },
+  cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+});
+
+// --- STATE ---
+let S = {
+  user: null, role: null, data: null,
+  section: 'vencimientos',
+  saveTimer: null
+};
+
+// --- DEFAULT DATA ---
+function defaultData() {
+  return {
+    version: '2.0',
+    lastModified: new Date().toISOString(),
+    costos: {
+      T1: {
+        fijos: [
+          { id:'cf1', concepto:'Seguro vehicular',           monto:2500 },
+          { id:'cf2', concepto:'Tenencia',                   monto:800  },
+          { id:'cf3', concepto:'Verificación',               monto:300  },
+          { id:'cf4', concepto:'Permiso SCT',                monto:1200 },
+          { id:'cf5', concepto:'GPS / Rastreo',              monto:350  },
+          { id:'cf6', concepto:'Depreciación',               monto:3000 },
+          { id:'cf7', concepto:'Mantenimiento preventivo',   monto:2000 }
+        ],
+        operadorSueldo: 18000,
+        operadorHoras:  160,
+        variables: { dieselPrecio:24.5, dieselLts:8, lubricantes:500, llantas:800 }
+      },
+      T2: {
+        fijos: [
+          { id:'cf1', concepto:'Seguro vehicular',           monto:3200 },
+          { id:'cf2', concepto:'Tenencia',                   monto:1200 },
+          { id:'cf3', concepto:'Verificación',               monto:400  },
+          { id:'cf4', concepto:'Permiso SCT',                monto:1500 },
+          { id:'cf5', concepto:'GPS / Rastreo',              monto:350  },
+          { id:'cf6', concepto:'Depreciación',               monto:5000 },
+          { id:'cf7', concepto:'Mantenimiento preventivo',   monto:3000 }
+        ],
+        operadorSueldo: 22000,
+        operadorHoras:  160,
+        variables: { dieselPrecio:24.5, dieselLts:12, lubricantes:700, llantas:1200 }
+      }
+    },
+    vencimientos: [
+      {id:'v1', grua:'T1', documento:'Tarjeta de circulación',       fecha:'2026-12-31'},
+      {id:'v2', grua:'T1', documento:'Seguro vehicular',              fecha:'2026-09-15'},
+      {id:'v3', grua:'T1', documento:'Verificación',                  fecha:'2026-11-30'},
+      {id:'v4', grua:'T1', documento:'Permiso SCT',                   fecha:'2026-08-31'},
+      {id:'v5', grua:'T1', documento:'Certificación pluma DIAL-1054', fecha:'2027-03-15'},
+      {id:'v6', grua:'T1', documento:'Licencia operador',             fecha:'2026-07-20'},
+      {id:'v7', grua:'T1', documento:'Revisión física anual',         fecha:'2026-06-30'},
+      {id:'v8', grua:'T1', documento:'Póliza RC',                     fecha:'2026-09-15'},
+      {id:'v9', grua:'T2', documento:'Tarjeta de circulación',        fecha:'2026-12-31'},
+      {id:'v10',grua:'T2', documento:'Seguro vehicular',              fecha:'2026-09-15'},
+      {id:'v11',grua:'T2', documento:'Verificación',                  fecha:'2026-11-30'},
+      {id:'v12',grua:'T2', documento:'Permiso SCT',                   fecha:'2026-08-31'},
+      {id:'v13',grua:'T2', documento:'Certificación pluma BT4792',    fecha:'2027-01-20'},
+      {id:'v14',grua:'T2', documento:'Licencia operador',             fecha:'2026-10-15'},
+      {id:'v15',grua:'T2', documento:'Revisión física anual',         fecha:'2026-07-31'},
+      {id:'v16',grua:'T2', documento:'Póliza RC',                     fecha:'2026-09-15'}
+    ],
+    servicios: [],
+    mantenimiento: {
+      T1: {
+        hrsActuales: 0,
+        alerts: [
+          {id:'a1',concepto:'Aceite motor T444E',           tipo:'hrs', intervalo:250,  reset:0,    ultimaFecha:null},
+          {id:'a2',concepto:'Aceite hidráulico grúa',       tipo:'hrs', intervalo:1000, reset:0,    ultimaFecha:null},
+          {id:'a3',concepto:'Inspección cable de acero',    tipo:'hrs', intervalo:250,  reset:0,    ultimaFecha:null},
+          {id:'a4',concepto:'Inspección pluma (anual)',     tipo:'mes', intervalo:12,   reset:0,    ultimaFecha:null},
+          {id:'a5',concepto:'Ajuste de frenos',             tipo:'hrs', intervalo:500,  reset:0,    ultimaFecha:null}
+        ]
+      },
+      T2: {
+        hrsActuales: 0,
+        alerts: [
+          {id:'a6', concepto:'Aceite motor Cummins ISC',    tipo:'hrs', intervalo:500,  reset:0,    ultimaFecha:null},
+          {id:'a7', concepto:'Aceite hidráulico grúa',      tipo:'hrs', intervalo:1000, reset:0,    ultimaFecha:null},
+          {id:'a8', concepto:'Inspección cable de acero',   tipo:'hrs', intervalo:250,  reset:0,    ultimaFecha:null},
+          {id:'a9', concepto:'Inspección pluma (anual)',    tipo:'mes', intervalo:12,   reset:0,    ultimaFecha:null},
+          {id:'a10',concepto:'Turbo VGT — inspección',      tipo:'hrs', intervalo:500,  reset:0,    ultimaFecha:null}
+        ]
+      }
+    },
+    pagos: [
+      {id:'p1',concepto:'Seguro vehicular T1', monto:2500, venc:'2026-09-15', period:'mensual'},
+      {id:'p2',concepto:'Seguro vehicular T2', monto:3200, venc:'2026-09-15', period:'mensual'},
+      {id:'p3',concepto:'IMSS Operador T1',   monto:2800, venc:'2026-06-17', period:'mensual'},
+      {id:'p4',concepto:'IMSS Operador T2',   monto:3200, venc:'2026-06-17', period:'mensual'},
+      {id:'p5',concepto:'Permiso SCT T1',     monto:1200, venc:'2026-08-31', period:'anual'},
+      {id:'p6',concepto:'Permiso SCT T2',     monto:1500, venc:'2026-08-31', period:'anual'}
+    ],
+    historial: []
+  };
+}
+
+// --- AUTH ---
+async function login() {
+  try {
+    const r = await msal_app.loginPopup({ scopes: CFG.scopes, prompt: 'select_account' });
+    await bootApp(r.account);
+  } catch(e) {
+    const el = document.getElementById('loginError');
+    el.textContent = 'No se pudo iniciar sesión. Asegúrate de usar tu cuenta METARCO (@metarco.com.mx).';
+    el.classList.remove('hidden');
+  }
+}
+
+async function logout() {
+  await msal_app.logoutPopup();
+  S = { user:null, role:null, data:null, section:'vencimientos', saveTimer:null };
+  document.getElementById('appShell').classList.remove('visible');
+  document.getElementById('loginScreen').style.display='flex';
+}
+
+async function getToken() {
+  const acc = msal_app.getAllAccounts();
+  if (!acc.length) return null;
+  try {
+    const r = await msal_app.acquireTokenSilent({ scopes: CFG.scopes, account: acc[0] });
+    return r.accessToken;
+  } catch {
+    const r = await msal_app.acquireTokenPopup({ scopes: CFG.scopes });
+    return r.accessToken;
+  }
+}
+
+// --- GRAPH / ONEDRIVE ---
+const GRAPH = 'https://graph.microsoft.com/v1.0';
+
+async function loadFromOneDrive() {
+  sync('syncing','Cargando...');
+  try {
+    const tok = await getToken();
+    const url = `${GRAPH}/me/drive/root:/${CFG.filePath}:/content`;
+    const r = await fetch(url, { headers:{ Authorization:`Bearer ${tok}` } });
+    if (r.status === 404) {
+      const d = defaultData();
+      await saveToOneDrive(d);
+      return d;
+    }
+    const d = await r.json();
+    sync('ok','Sincronizado');
+    return d;
+  } catch(e) {
+    sync('error','Sin conexión — datos locales');
+    return defaultData();
+  }
+}
+
+async function saveToOneDrive(data) {
+  sync('syncing','Guardando...');
+  try {
+    const tok = await getToken();
+    data.lastModified = new Date().toISOString();
+    await fetch(`${GRAPH}/me/drive/root:/${CFG.filePath}:/content`, {
+      method:'PUT',
+      headers:{ Authorization:`Bearer ${tok}`, 'Content-Type':'application/json' },
+      body: JSON.stringify(data, null, 2)
+    });
+    sync('ok','Guardado ✓');
+    setTimeout(() => sync('ok','Sincronizado'), 3000);
+  } catch {
+    sync('error','Error al guardar');
+  }
+}
+
+function scheduleSave() {
+  if (S.saveTimer) clearTimeout(S.saveTimer);
+  S.saveTimer = setTimeout(() => saveToOneDrive(S.data), 1500);
+}
+
+function sync(status, text) {
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  dot.className = 'sync-dot' + (status==='syncing' ? ' syncing' : status==='error' ? ' error' : '');
+  txt.textContent = text;
+}
+
+// --- BOOT ---
+async function bootApp(account) {
+  const email = (account.username || '').toLowerCase();
+  const isAdmin = CFG.admins.map(e=>e.toLowerCase()).includes(email);
+  S.user = account;
+  S.role = isAdmin ? 'admin' : 'operador';
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').classList.add('visible');
+  document.getElementById('userName').textContent = account.name || account.username;
+  document.getElementById('userAvatar').textContent = (account.name || account.username)[0].toUpperCase();
+  document.getElementById('userRoleLbl').innerHTML =
+    `<span class="badge b-${S.role}">${isAdmin ? 'Admin' : 'Operador'}</span>`;
+
+  document.querySelectorAll('.admin-only').forEach(el =>
+    el.classList.toggle('hidden', !isAdmin)
+  );
+
+  S.data = await loadFromOneDrive();
+  navigate(S.section);
+}
+
+// --- NAVIGATE ---
+function navigate(sec) {
+  if (S.role !== 'admin' && ['costos','pagos'].includes(sec)) sec = 'vencimientos';
+  S.section = sec;
+  document.querySelectorAll('.nav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.sec === sec)
+  );
+  document.getElementById('mainContent').innerHTML = SECTIONS[sec] ? SECTIONS[sec]() : '';
+}
+
+// --- HELPERS ---
+const MXN = n => new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:0}).format(n||0);
+const uid  = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+const today = () => new Date().toISOString().split('T')[0];
+
+function daysTo(fecha) {
+  if (!fecha) return 999;
+  return Math.ceil((new Date(fecha) - new Date()) / 86400000);
+}
+function semaforo(dias) {
+  if (dias <= 0)  return 'error';
+  if (dias <= 15) return 'error';
+  if (dias <= 30) return 'warn';
+  return 'ok';
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.add('hidden'), 3000);
+}
+function openModal(html) {
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.add('hidden');
+}
+
+// ============================================================
+// SECCIÓN: COSTOS (Admin only)
+// ============================================================
+function renderCostos() {
+  function calc(u) {
+    const d = S.data.costos[u];
+    const totalFijo = d.fijos.reduce((s,f) => s+(f.monto||0), 0);
+    const hrs = d.operadorHoras || 160;
+    const fijoHr  = totalFijo / hrs;
+    const opHr    = d.operadorSueldo / hrs;
+    const varHr   = (d.variables.dieselPrecio * d.variables.dieselLts)
+                  + (d.variables.lubricantes / hrs)
+                  + (d.variables.llantas / hrs);
+    const totalHr = fijoHr + opHr + varHr;
+    return { totalFijo, fijoHr, opHr, varHr, totalHr };
+  }
+
+  function panel(u) {
+    const d = S.data.costos[u];
+    const r = calc(u);
+    return `
+    <div>
+      <!-- Fijos -->
+      <div class="card mb20">
+        <div class="card-title"><span class="badge b-${u.toLowerCase()}">${u}</span> COSTOS FIJOS MENSUALES</div>
+        <table>
+          <thead><tr><th>Concepto</th><th class="tr">Monto/mes</th><th></th></tr></thead>
+          <tbody>
+            ${d.fijos.map(f=>`
+            <tr>
+              <td>${f.concepto}</td>
+              <td class="tr" style="font-weight:600;">${MXN(f.monto)}</td>
+              <td class="tr"><button class="btn btn-outline btn-sm" onclick="editFijo('${u}','${f.id}')">Editar</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        <div class="flex jb ic mt16" style="padding-top:12px;border-top:1px solid var(--border-card);">
+          <span style="font-size:12px;color:var(--text-gray);font-weight:600;">Total fijo mensual</span>
+          <span style="font-weight:700;font-size:15px;">${MXN(r.totalFijo)}</span>
+        </div>
+      </div>
+
+      <!-- Operador — solo Admin ve sueldo, solo ve costo/hr calculado -->
+      <div class="card mb20" style="border-left:3px solid var(--blue-ms);">
+        <div class="card-title">👤 OPERADOR ${u} <span class="admin-section-tag">🔒 Solo Admin</span></div>
+        <div class="g2 g12 mb16">
+          <div class="fg">
+            <label class="lbl">Sueldo mensual (MXN)</label>
+            <input type="number" class="inp" value="${d.operadorSueldo}"
+              onchange="updOp('${u}','s',this.value)">
+          </div>
+          <div class="fg">
+            <label class="lbl">Horas promedio / mes</label>
+            <input type="number" class="inp" value="${d.operadorHoras}"
+              onchange="updOp('${u}','h',this.value)">
+          </div>
+        </div>
+        <div style="background:rgba(0,120,212,0.07);border-radius:10px;padding:14px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:11px;color:var(--text-gray);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Costo operador / hora</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Calculado automáticamente</div>
+          </div>
+          <span id="opHr${u}" style="font-family:'Orbitron';font-weight:900;font-size:22px;color:var(--blue-ms);">${MXN(r.opHr)}</span>
+        </div>
+      </div>
+
+      <!-- Variables -->
+      <div class="card mb20">
+        <div class="card-title">⛽ COSTOS VARIABLES — ${u}</div>
+        <div class="g2 g12">
+          <div class="fg">
+            <label class="lbl">Diesel ($/litro)</label>
+            <input type="number" step="0.1" class="inp" value="${d.variables.dieselPrecio}"
+              onchange="updVar('${u}','dieselPrecio',this.value)">
+          </div>
+          <div class="fg">
+            <label class="lbl">Consumo (litros/hr)</label>
+            <input type="number" step="0.5" class="inp" value="${d.variables.dieselLts}"
+              onchange="updVar('${u}','dieselLts',this.value)">
+          </div>
+          <div class="fg">
+            <label class="lbl">Lubricantes ($/mes)</label>
+            <input type="number" class="inp" value="${d.variables.lubricantes}"
+              onchange="updVar('${u}','lubricantes',this.value)">
+          </div>
+          <div class="fg">
+            <label class="lbl">Llantas ($/mes prorrateado)</label>
+            <input type="number" class="inp" value="${d.variables.llantas}"
+              onchange="updVar('${u}','llantas',this.value)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen -->
+      <div class="g4">
+        <div class="stat-card"><div class="stat-val" style="color:#3b82f6;font-size:17px;">${MXN(r.fijoHr)}</div><div class="stat-lbl">Fijo/hr</div></div>
+        <div class="stat-card"><div class="stat-val" style="color:#0078d4;font-size:17px;">${MXN(r.opHr)}</div><div class="stat-lbl">Operador/hr</div></div>
+        <div class="stat-card"><div class="stat-val" style="color:#f59e0b;font-size:17px;">${MXN(r.varHr)}</div><div class="stat-lbl">Variable/hr</div></div>
+        <div class="stat-card" style="background:#0a1628;">
+          <div class="stat-val" style="color:#22c55e;font-size:17px;">${MXN(r.totalHr)}</div>
+          <div class="stat-lbl" style="color:rgba(255,255,255,.5);">Costo total/hr</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="sec-header">
+    <div class="sec-title">COSTOS OPERATIVOS</div>
+    <div class="sec-sub">Estructura de costos T1 y T2 · Solo visible para administradores</div>
+  </div>
+  <div class="g2">${panel('T1')}${panel('T2')}</div>`;
+}
+
+function editFijo(u, id) {
+  const f = S.data.costos[u].fijos.find(x=>x.id===id);
+  openModal(`
+    <div class="modal-title">EDITAR COSTO FIJO — ${u}</div>
+    <div class="fg"><label class="lbl">Concepto</label><input id="_c" class="inp" value="${f.concepto}"></div>
+    <div class="fg"><label class="lbl">Monto mensual (MXN)</label><input id="_m" type="number" class="inp" value="${f.monto}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFijo('${u}','${id}')">Guardar</button>
+    </div>`);
+}
+function saveFijo(u,id) {
+  const f = S.data.costos[u].fijos.find(x=>x.id===id);
+  f.concepto = document.getElementById('_c').value;
+  f.monto    = parseFloat(document.getElementById('_m').value)||0;
+  closeModal(); scheduleSave(); navigate('costos'); toast('Costo actualizado');
+}
+function updOp(u, campo, v) {
+  if (campo==='s') S.data.costos[u].operadorSueldo = parseFloat(v)||0;
+  if (campo==='h') S.data.costos[u].operadorHoras  = parseFloat(v)||160;
+  const el = document.getElementById(`opHr${u}`);
+  if (el) {
+    const d=S.data.costos[u];
+    el.textContent = MXN(d.operadorSueldo/(d.operadorHoras||160));
+  }
+  scheduleSave();
+}
+function updVar(u,k,v) {
+  S.data.costos[u].variables[k] = parseFloat(v)||0;
+  scheduleSave();
+}
+
+// ============================================================
+// SECCIÓN: VENCIMIENTOS
+// ============================================================
+function renderVencimientos() {
+  function grupo(grua) {
+    const docs = S.data.vencimientos.filter(v=>v.grua===grua);
+    return `
+    <div class="card mb20">
+      <div class="flex jb ic mb16">
+        <div class="card-title" style="margin:0;border:0;padding:0;"><span class="badge b-${grua.toLowerCase()}">${grua}</span>&nbsp;Documentos</div>
+        <button class="btn btn-outline btn-sm" onclick="addVenc('${grua}')">+ Agregar</button>
+      </div>
+      <table>
+        <thead><tr><th></th><th>Documento</th><th>Vencimiento</th><th>Días</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+          ${docs.map(v=>{
+            const d=daysTo(v.fecha), s=semaforo(d);
+            return `<tr>
+              <td><span class="dot dot-${s}"></span></td>
+              <td style="font-weight:500;">${v.documento}</td>
+              <td>${v.fecha||'—'}</td>
+              <td style="font-weight:700;color:${s==='ok'?'#22c55e':s==='warn'?'#f59e0b':'#ef4444'};">
+                ${d<=0?'VENCIDO':d+' días'}
+              </td>
+              <td><span class="badge b-${s}">${s==='ok'?'Vigente':s==='warn'?'Por vencer':'Vencido'}</span></td>
+              <td class="tr"><button class="btn btn-outline btn-sm" onclick="editVenc('${v.id}')">Editar</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  const alertas = S.data.vencimientos.filter(v=>daysTo(v.fecha)<=30);
+  return `
+  <div class="sec-header">
+    <div class="sec-title">VENCIMIENTOS</div>
+    <div class="sec-sub">Documentos y certificaciones — T1 y T2</div>
+  </div>
+  ${alertas.length ? `
+  <div class="card-dark mb20" style="border-color:rgba(245,158,11,.4);">
+    <div style="font-family:'Orbitron';font-size:10px;letter-spacing:2px;color:#f59e0b;margin-bottom:12px;">⚠ ALERTAS ACTIVAS (${alertas.length})</div>
+    ${alertas.map(v=>{const d=daysTo(v.fecha);return `
+    <div class="flex jb" style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+      <span style="font-size:13px;">${v.grua} · ${v.documento}</span>
+      <span style="font-size:13px;font-weight:700;color:${d<=0?'#ef4444':'#f59e0b'};">${d<=0?'VENCIDO':d+' días'}</span>
+    </div>`}).join('')}
+  </div>` : ''}
+  ${grupo('T1')}${grupo('T2')}`;
+}
+
+function editVenc(id) {
+  const v=S.data.vencimientos.find(x=>x.id===id);
+  openModal(`
+    <div class="modal-title">EDITAR DOCUMENTO — ${v.grua}</div>
+    <div class="fg"><label class="lbl">Documento</label><input id="_d" class="inp" value="${v.documento}"></div>
+    <div class="fg"><label class="lbl">Fecha de vencimiento</label><input id="_f" type="date" class="inp" value="${v.fecha}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="delVenc('${id}')">Eliminar</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveVenc('${id}')">Guardar</button>
+    </div>`);
+}
+function addVenc(grua) {
+  const id=uid(); S.data.vencimientos.push({id,grua,documento:'',fecha:''});
+  editVenc(id);
+}
+function saveVenc(id) {
+  const v=S.data.vencimientos.find(x=>x.id===id);
+  v.documento=document.getElementById('_d').value;
+  v.fecha=document.getElementById('_f').value;
+  closeModal(); scheduleSave(); navigate('vencimientos'); toast('Documento actualizado');
+}
+function delVenc(id) {
+  S.data.vencimientos=S.data.vencimientos.filter(x=>x.id!==id);
+  closeModal(); scheduleSave(); navigate('vencimientos'); toast('Documento eliminado');
+}
+
+// ============================================================
+// SECCIÓN: SERVICIOS
+// ============================================================
+function renderServicios() {
+  const ss = S.data.servicios||[];
+  const ingTotal = ss.reduce((t,s)=>t+(s.ingreso||0),0);
+  const marTotal = ss.reduce((t,s)=>t+((s.ingreso||0)-(s.costo||0)),0);
+  return `
+  <div class="sec-header">
+    <div class="flex jb ic">
+      <div><div class="sec-title">BITÁCORA DE SERVICIOS</div><div class="sec-sub">Registro de maniobras ejecutadas</div></div>
+      <button class="btn btn-primary" onclick="addServicio()">+ Nuevo servicio</button>
+    </div>
+  </div>
+  <div class="g3 mb20">
+    <div class="stat-card"><div class="stat-val" style="color:#3b82f6;">${ss.length}</div><div class="stat-lbl">Servicios</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#22c55e;font-size:18px;">${MXN(ingTotal)}</div><div class="stat-lbl">Ingresos totales</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#f59e0b;font-size:18px;">${MXN(marTotal)}</div><div class="stat-lbl">Margen total</div></div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Grúa</th><th>Cliente</th><th>Tipo</th><th class="tr">Horas</th><th class="tr">Ingreso</th><th class="tr">Costo var.</th><th class="tr">Margen</th><th></th></tr></thead>
+        <tbody>
+          ${!ss.length ? `<tr class="tr-empty"><td colspan="9">Sin servicios registrados. Agrega el primero.</td></tr>` :
+            ss.map(s=>{const m=(s.ingreso||0)-(s.costo||0); return `
+            <tr>
+              <td>${s.fecha||'—'}</td>
+              <td><span class="badge b-${(s.grua||'').toLowerCase()}">${s.grua||'—'}</span></td>
+              <td style="font-weight:500;">${s.cliente||'—'}</td>
+              <td>${s.tipo||'—'}</td>
+              <td class="tr">${s.horas||0} hr</td>
+              <td class="tr" style="font-weight:600;">${MXN(s.ingreso)}</td>
+              <td class="tr">${MXN(s.costo)}</td>
+              <td class="tr" style="font-weight:700;color:${m>=0?'#22c55e':'#ef4444'};">${MXN(m)}</td>
+              <td><button class="btn btn-outline btn-sm" onclick="editServicio('${s.id}')">Editar</button></td>
+            </tr>`}).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function addServicio() {
+  openModal(`
+    <div class="modal-title">NUEVO SERVICIO</div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Fecha</label><input id="_sf" type="date" class="inp" value="${today()}"></div>
+      <div class="fg"><label class="lbl">Grúa</label>
+        <select id="_sg" class="sel"><option value="T1">T1 — 14 ton</option><option value="T2">T2 — 23 ton</option></select></div>
+    </div>
+    <div class="fg"><label class="lbl">Cliente</label><input id="_sc" class="inp" placeholder="Nombre del cliente"></div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Tipo de maniobra</label>
+        <select id="_st" class="sel"><option>Izaje</option><option>Elevación</option><option>Flete con carga/descarga</option><option>Maniobra especial</option><option>Arrastre</option></select></div>
+      <div class="fg"><label class="lbl">Accesorio</label>
+        <select id="_sa" class="sel"><option value="">Ninguno</option><option>Canastilla</option><option>Balancín</option><option>Eslingas</option></select></div>
+    </div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Horas trabajadas</label><input id="_sh" type="number" step="0.5" class="inp" placeholder="0"></div>
+      <div class="fg"><label class="lbl">Km recorridos</label><input id="_sk" type="number" class="inp" placeholder="0"></div>
+    </div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Ingreso total (sin IVA)</label><input id="_si" type="number" class="inp" placeholder="0"></div>
+      <div class="fg"><label class="lbl">Costo variable estimado</label><input id="_sv" type="number" class="inp" placeholder="0"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveServicio()">Guardar</button>
+    </div>`);
+}
+
+function saveServicio() {
+  S.data.servicios.unshift({
+    id:uid(), fecha:document.getElementById('_sf').value,
+    grua:document.getElementById('_sg').value,
+    cliente:document.getElementById('_sc').value,
+    tipo:document.getElementById('_st').value,
+    accesorio:document.getElementById('_sa').value,
+    horas:parseFloat(document.getElementById('_sh').value)||0,
+    km:parseFloat(document.getElementById('_sk').value)||0,
+    ingreso:parseFloat(document.getElementById('_si').value)||0,
+    costo:parseFloat(document.getElementById('_sv').value)||0
+  });
+  closeModal(); scheduleSave(); navigate('servicios'); toast('Servicio registrado');
+}
+
+function editServicio(id) {
+  const s=S.data.servicios.find(x=>x.id===id);
+  openModal(`
+    <div class="modal-title">EDITAR SERVICIO</div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Fecha</label><input id="_sf" type="date" class="inp" value="${s.fecha}"></div>
+      <div class="fg"><label class="lbl">Grúa</label>
+        <select id="_sg" class="sel"><option value="T1" ${s.grua==='T1'?'selected':''}>T1</option><option value="T2" ${s.grua==='T2'?'selected':''}>T2</option></select></div>
+    </div>
+    <div class="fg"><label class="lbl">Cliente</label><input id="_sc" class="inp" value="${s.cliente}"></div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Horas</label><input id="_sh" type="number" step="0.5" class="inp" value="${s.horas}"></div>
+      <div class="fg"><label class="lbl">Ingreso (sin IVA)</label><input id="_si" type="number" class="inp" value="${s.ingreso}"></div>
+    </div>
+    <div class="fg"><label class="lbl">Costo variable</label><input id="_sv" type="number" class="inp" value="${s.costo}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="delServicio('${id}')">Eliminar</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="updServicio('${id}')">Guardar</button>
+    </div>`);
+}
+function updServicio(id) {
+  const s=S.data.servicios.find(x=>x.id===id);
+  s.fecha=document.getElementById('_sf').value;
+  s.grua=document.getElementById('_sg').value;
+  s.cliente=document.getElementById('_sc').value;
+  s.horas=parseFloat(document.getElementById('_sh').value)||0;
+  s.ingreso=parseFloat(document.getElementById('_si').value)||0;
+  s.costo=parseFloat(document.getElementById('_sv').value)||0;
+  closeModal(); scheduleSave(); navigate('servicios'); toast('Servicio actualizado');
+}
+function delServicio(id) {
+  S.data.servicios=S.data.servicios.filter(x=>x.id!==id);
+  closeModal(); scheduleSave(); navigate('servicios'); toast('Servicio eliminado');
+}
+
+// ============================================================
+// SECCIÓN: MANTENIMIENTO
+// ============================================================
+function renderMantenimiento() {
+  function panel(grua) {
+    const m=S.data.mantenimiento[grua];
+    const hrs=m.hrsActuales||0;
+    return `
+    <div class="card mb20">
+      <div class="flex jb ic mb16">
+        <div class="card-title" style="margin:0;border:0;padding:0;"><span class="badge b-${grua.toLowerCase()}">${grua}</span>&nbsp;Alertas preventivas</div>
+        <div class="flex ic g8">
+          <span style="font-size:11px;color:var(--text-gray);">Hrs actuales:</span>
+          <input type="number" style="width:72px;padding:4px 8px;border:1.5px solid var(--border-card);border-radius:7px;font-size:13px;font-weight:700;color:var(--text-dark);"
+            value="${hrs}" onchange="updHrs('${grua}',this.value)">
+        </div>
+      </div>
+      ${m.alerts.map(a=>{
+        let pct=0, sc='ok', lbl='';
+        if (a.tipo==='hrs') {
+          const desde=hrs-(a.reset||0);
+          pct=Math.min(100,(desde/a.intervalo)*100);
+          const rest=a.intervalo-desde;
+          lbl=rest<=0?'¡REALIZAR AHORA!': `${rest} hrs restantes`;
+          sc=pct>=100?'error':pct>=80?'warn':'ok';
+        } else {
+          if (a.ultimaFecha) {
+            const meses=(new Date()-new Date(a.ultimaFecha))/(86400000*30);
+            pct=Math.min(100,(meses/a.intervalo)*100);
+            const mRest=a.intervalo-meses;
+            lbl=mRest<=0?'¡REALIZAR AHORA!':`${Math.ceil(mRest)} meses restantes`;
+            sc=pct>=100?'error':pct>=80?'warn':'ok';
+          } else { pct=0; lbl='Sin fecha registrada'; sc='warn'; }
+        }
+        return `
+        <div style="padding:12px 0;border-bottom:1px solid var(--border-card);">
+          <div class="flex jb ic">
+            <span style="font-size:13px;font-weight:500;color:var(--text-dark);">${a.concepto}</span>
+            <div class="flex ic g8">
+              <span style="font-size:11px;font-weight:600;color:${sc==='ok'?'#22c55e':sc==='warn'?'#f59e0b':'#ef4444'};">${lbl}</span>
+              <button class="btn btn-outline btn-sm" onclick="resetAlerta('${grua}','${a.id}')">✓ Reset</button>
+            </div>
+          </div>
+          <div class="prog"><div class="prog-fill ${sc!=='ok'?sc:''}" style="width:${pct}%"></div></div>
+        </div>`}).join('')}
+    </div>`;
+  }
+  return `
+  <div class="sec-header">
+    <div class="sec-title">MANTENIMIENTO PREVENTIVO</div>
+    <div class="sec-sub">Alertas basadas en horas de operación e intervalos de servicio</div>
+  </div>
+  <div class="g2">${panel('T1')}${panel('T2')}</div>`;
+}
+
+function updHrs(grua, v) {
+  S.data.mantenimiento[grua].hrsActuales=parseFloat(v)||0;
+  scheduleSave();
+}
+function resetAlerta(grua, alertId) {
+  const a=S.data.mantenimiento[grua].alerts.find(x=>x.id===alertId);
+  if (!a) return;
+  if (a.tipo==='hrs') a.reset=S.data.mantenimiento[grua].hrsActuales;
+  else a.ultimaFecha=today();
+  S.data.historial.unshift({
+    id:uid(), fecha:today(), grua, tipo:'Preventivo',
+    descripcion:a.concepto, taller:'', costo:0
+  });
+  scheduleSave(); navigate('mantenimiento'); toast(`${a.concepto} — reseteado`);
+}
+
+// ============================================================
+// SECCIÓN: PAGOS (Admin)
+// ============================================================
+function renderPagos() {
+  const ps=S.data.pagos||[];
+  const total=ps.reduce((t,p)=>t+(p.monto||0),0);
+  return `
+  <div class="sec-header">
+    <div class="flex jb ic">
+      <div><div class="sec-title">PAGOS RECURRENTES</div><div class="sec-sub">Compromisos periódicos y fechas de vencimiento</div></div>
+      <button class="btn btn-primary" onclick="addPago()">+ Agregar</button>
+    </div>
+  </div>
+  <div class="g3 mb20">
+    <div class="stat-card"><div class="stat-val" style="color:#0078d4;font-size:18px;">${MXN(total)}</div><div class="stat-lbl">Total compromisos/mes</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#ef4444;">${ps.filter(p=>daysTo(p.venc)<=7).length}</div><div class="stat-lbl">Vencen en 7 días</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#f59e0b;">${ps.filter(p=>daysTo(p.venc)<=30&&daysTo(p.venc)>7).length}</div><div class="stat-lbl">Vencen en 30 días</div></div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table>
+      <thead><tr><th></th><th>Concepto</th><th>Periodicidad</th><th>Próx. vencimiento</th><th>Días</th><th class="tr">Monto</th><th></th></tr></thead>
+      <tbody>
+        ${ps.map(p=>{const d=daysTo(p.venc),s=semaforo(d); return `
+        <tr>
+          <td><span class="dot dot-${s}"></span></td>
+          <td style="font-weight:500;">${p.concepto}</td>
+          <td style="color:#64748b;">${p.period}</td>
+          <td>${p.venc||'—'}</td>
+          <td style="font-weight:700;color:${s==='ok'?'#22c55e':s==='warn'?'#f59e0b':'#ef4444'};">${d<=0?'HOY':d+' días'}</td>
+          <td class="tr" style="font-weight:700;">${MXN(p.monto)}</td>
+          <td class="tr" style="white-space:nowrap;">
+            <button class="btn btn-outline btn-sm" onclick="pagar('${p.id}')">✓ Pagado</button>
+            <button class="btn btn-outline btn-sm" onclick="editPago('${p.id}')">Editar</button>
+          </td>
+        </tr>`}).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function addPago() {
+  openModal(`
+    <div class="modal-title">NUEVO PAGO RECURRENTE</div>
+    <div class="fg"><label class="lbl">Concepto</label><input id="_pc" class="inp" placeholder="Ej. Seguro vehicular T1"></div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Monto (MXN)</label><input id="_pm" type="number" class="inp"></div>
+      <div class="fg"><label class="lbl">Periodicidad</label>
+        <select id="_pp" class="sel"><option>mensual</option><option>bimestral</option><option>trimestral</option><option>semestral</option><option>anual</option></select></div>
+    </div>
+    <div class="fg"><label class="lbl">Próximo vencimiento</label><input id="_pf" type="date" class="inp"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePago()">Guardar</button>
+    </div>`);
+}
+function savePago() {
+  S.data.pagos.push({
+    id:uid(), concepto:document.getElementById('_pc').value,
+    monto:parseFloat(document.getElementById('_pm').value)||0,
+    period:document.getElementById('_pp').value,
+    venc:document.getElementById('_pf').value
+  });
+  closeModal(); scheduleSave(); navigate('pagos'); toast('Pago agregado');
+}
+function editPago(id) {
+  const p=S.data.pagos.find(x=>x.id===id);
+  openModal(`
+    <div class="modal-title">EDITAR PAGO</div>
+    <div class="fg"><label class="lbl">Concepto</label><input id="_pc" class="inp" value="${p.concepto}"></div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Monto</label><input id="_pm" type="number" class="inp" value="${p.monto}"></div>
+      <div class="fg"><label class="lbl">Próx. vencimiento</label><input id="_pf" type="date" class="inp" value="${p.venc}"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="delPago('${id}')">Eliminar</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="updPago('${id}')">Guardar</button>
+    </div>`);
+}
+function updPago(id) {
+  const p=S.data.pagos.find(x=>x.id===id);
+  p.concepto=document.getElementById('_pc').value;
+  p.monto=parseFloat(document.getElementById('_pm').value)||0;
+  p.venc=document.getElementById('_pf').value;
+  closeModal(); scheduleSave(); navigate('pagos'); toast('Pago actualizado');
+}
+function delPago(id) {
+  S.data.pagos=S.data.pagos.filter(x=>x.id!==id);
+  closeModal(); scheduleSave(); navigate('pagos'); toast('Pago eliminado');
+}
+function pagar(id) {
+  const p=S.data.pagos.find(x=>x.id===id);
+  const f=new Date(p.venc);
+  const m={mensual:1,bimestral:2,trimestral:3,semestral:6,anual:12};
+  f.setMonth(f.getMonth()+(m[p.period]||1));
+  p.venc=f.toISOString().split('T')[0];
+  scheduleSave(); navigate('pagos'); toast(`${p.concepto} — próximo venc. avanzado`);
+}
+
+// ============================================================
+// SECCIÓN: HISTORIAL
+// ============================================================
+function renderHistorial() {
+  const h=S.data.historial||[];
+  return `
+  <div class="sec-header">
+    <div class="flex jb ic">
+      <div><div class="sec-title">HISTORIAL DE MANTENIMIENTO</div><div class="sec-sub">Preventivos, correctivos e inspecciones</div></div>
+      <button class="btn btn-primary" onclick="addHistorial()">+ Agregar</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table>
+      <thead><tr><th>Fecha</th><th>Grúa</th><th>Tipo</th><th>Descripción</th><th>Taller</th><th class="tr">Costo</th><th></th></tr></thead>
+      <tbody>
+        ${!h.length ? `<tr class="tr-empty"><td colspan="7">Sin registros de mantenimiento.</td></tr>` :
+          h.map(x=>`
+          <tr>
+            <td>${x.fecha||'—'}</td>
+            <td><span class="badge b-${(x.grua||'').toLowerCase()}">${x.grua||'—'}</span></td>
+            <td><span class="badge b-${x.tipo==='Preventivo'?'ok':x.tipo==='Correctivo'?'error':'warn'}">${x.tipo}</span></td>
+            <td style="font-weight:500;">${x.descripcion||'—'}</td>
+            <td style="color:#64748b;">${x.taller||'—'}</td>
+            <td class="tr">${MXN(x.costo)}</td>
+            <td><button class="btn btn-outline btn-sm" onclick="delHistorial('${x.id}')">✕</button></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+function addHistorial() {
+  openModal(`
+    <div class="modal-title">NUEVO REGISTRO DE MANTENIMIENTO</div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Fecha</label><input id="_hf" type="date" class="inp" value="${today()}"></div>
+      <div class="fg"><label class="lbl">Grúa</label><select id="_hg" class="sel"><option>T1</option><option>T2</option></select></div>
+    </div>
+    <div class="fg"><label class="lbl">Tipo</label>
+      <select id="_ht" class="sel"><option>Preventivo</option><option>Correctivo</option><option>Inspección</option></select></div>
+    <div class="fg"><label class="lbl">Descripción</label><input id="_hd" class="inp" placeholder="Ej. Cambio aceite motor"></div>
+    <div class="g2 g12">
+      <div class="fg"><label class="lbl">Taller / Técnico</label><input id="_hta" class="inp" placeholder="Nombre del taller"></div>
+      <div class="fg"><label class="lbl">Costo (MXN)</label><input id="_hc" type="number" class="inp" placeholder="0"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveHistorial()">Guardar</button>
+    </div>`);
+}
+function saveHistorial() {
+  S.data.historial.unshift({
+    id:uid(), fecha:document.getElementById('_hf').value,
+    grua:document.getElementById('_hg').value,
+    tipo:document.getElementById('_ht').value,
+    descripcion:document.getElementById('_hd').value,
+    taller:document.getElementById('_hta').value,
+    costo:parseFloat(document.getElementById('_hc').value)||0
+  });
+  closeModal(); scheduleSave(); navigate('historial'); toast('Registro agregado');
+}
+function delHistorial(id) {
+  S.data.historial=S.data.historial.filter(x=>x.id!==id);
+  scheduleSave(); navigate('historial'); toast('Registro eliminado');
+}
+
+// ============================================================
+// SECTIONS MAP
+// ============================================================
+const SECTIONS = {
+  costos: renderCostos,
+  vencimientos: renderVencimientos,
+  servicios: renderServicios,
+  mantenimiento: renderMantenimiento,
+  pagos: renderPagos,
+  historial: renderHistorial
+};
+
+// Close modal on overlay click
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+});
+
+// ============================================================
+// INIT — recuperar sesión existente
+// ============================================================
+(async () => {
+  await msal_app.initialize();
+  const accounts = msal_app.getAllAccounts();
+  if (accounts.length > 0) {
+    await bootApp(accounts[0]);
+  }
+})();
+</script>
+</body>
+</html>
