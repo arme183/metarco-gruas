@@ -1385,21 +1385,28 @@ async function msBootDash(account) {
 
   try {
     const data = await odDashRead();
+    const isValidPagos = d => Array.isArray(d) && d.length > 0 && d[0].grua !== undefined && typeof d[0].id === 'number';
+    const isValidCostos = d => d && Array.isArray(d.t1) && Array.isArray(d.t2);
+    const isValidAlertas = d => Array.isArray(d) && d.length > 0 && d[0].cada !== undefined;
+
     if (data) {
-      // Load EXACT fields the original app expects — validate structure before assigning
-      if (data.costos && data.costos.t1 && data.costos.t2) {
-        costos = data.costos; lsSave(LS.c, costos);
+      if (isValidCostos(data.costos))   { costos  = data.costos;  lsSave(LS.c, costos);  }
+      else                              { costos  = DEF_COSTOS;   lsSave(LS.c, costos);  }
+      if (data.venc  && Array.isArray(data.venc))      { venc    = data.venc;    lsSave(LS.v, venc);    }
+      if (data.svcs  && Array.isArray(data.svcs))      { svcs    = data.svcs;    lsSave(LS.s, svcs);    }
+      if (data.mant  && Array.isArray(data.mant))      { mant    = data.mant;    lsSave(LS.m, mant);    }
+      if (isValidAlertas(data.alertas)) { alertas = data.alertas; lsSave(LS.a, alertas); }
+      else                              { alertas = DEF_ALERTAS;  lsSave(LS.a, alertas); }
+      if (isValidPagos(data.pagos))     { pagos   = data.pagos;   lsSave(LS.p, pagos);   }
+      else                              { pagos   = DEF_PAGOS;    lsSave(LS.p, pagos);   }
+      // If data was invalid, re-save correct structure to OneDrive
+      if (!isValidPagos(data.pagos) || !isValidCostos(data.costos)) {
+        setTimeout(() => odDashSaveNow(), 2000);
       }
-      if (data.venc   && Array.isArray(data.venc))    { venc    = data.venc;    lsSave(LS.v, venc);    }
-      if (data.svcs   && Array.isArray(data.svcs))    { svcs    = data.svcs;    lsSave(LS.s, svcs);    }
-      if (data.mant   && Array.isArray(data.mant))    { mant    = data.mant;    lsSave(LS.m, mant);    }
-      if (data.alertas && Array.isArray(data.alertas)){ alertas = data.alertas; lsSave(LS.a, alertas); }
-      if (data.pagos  && Array.isArray(data.pagos))   { pagos   = data.pagos;   lsSave(LS.p, pagos);   }
       odDashStatus('✓ OneDrive · Datos cargados · ' + account.username.split('@')[0]);
     } else {
-      // First time — no data in OneDrive yet, save current defaults
       odDashStatus('☁ Primera vez — guardando datos iniciales...');
-      await odDashSaveNow();
+      setTimeout(() => odDashSaveNow(), 1000);
       odDashStatus('✓ OneDrive · Listo · ' + account.username.split('@')[0]);
     }
     if (typeof renderResumen === 'function') renderResumen();
