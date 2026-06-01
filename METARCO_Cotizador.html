@@ -4009,6 +4009,15 @@ window.addEventListener('DOMContentLoaded', async () => {
    METARCO COTIZADOR — Microsoft Auth + OneDrive Sync
    Injected layer — original code untouched above
 ══════════════════════════════════════════════════ */
+// Fix: ARRASTRE_RATE missing from original code
+const ARRASTRE_RATE = { T1: 1000, T2: 1200 };
+
+// Fix: override autoGuardarEnCarpeta to use OneDrive instead of local folder
+window.autoGuardarEnCarpeta = async function(mostrarNotif = false) {
+  odScheduleSave();
+  if (mostrarNotif && window.showNotif) showNotif('☁ Guardando en OneDrive...', 1500);
+};
+
 const MS_CFG = {
   clientId: '6f7f3d07-3e40-4396-8f76-36d0f818d72d',
   tenantId: '3fce0139-013b-4c64-a04d-8605a9eb8088',
