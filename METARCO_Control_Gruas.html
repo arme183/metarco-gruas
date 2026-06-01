@@ -181,10 +181,7 @@ select option{background:var(--bg3);}
 </style>
 </head>
 <body>
-
-<!-- ══════════════════════════════════════════════════
-     METARCO MICROSOFT LOGIN OVERLAY
-══════════════════════════════════════════════════ -->
+<!-- METARCO LOGIN OVERLAY -->
 <div id="msLoginOverlay" style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 80%,#1a3d6b 0%,#0a1628 70%);">
   <div style="display:flex;flex-direction:column;align-items:center;">
     <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,0.25);box-shadow:0 4px 24px rgba(0,0,0,0.4);margin-bottom:-45px;z-index:10;position:relative;background:#0a1628;">
@@ -192,7 +189,7 @@ select option{background:var(--bg3);}
     </div>
     <div style="background:#f0f4f8;border-radius:20px;padding:60px 48px 36px;width:100%;max-width:520px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.35);">
       <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:28px;letter-spacing:5px;color:#0d1b3e;margin-bottom:6px;">METARCO</div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:#64748b;margin-bottom:28px;">CONTROL DE GRÚAS</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:#64748b;margin-bottom:28px;">DASHBOARD DE MANTENIMIENTO</div>
       <div style="font-weight:700;font-size:16px;color:#0d1b3e;margin-bottom:6px;">Acceso restringido</div>
       <div style="font-size:13px;color:#64748b;margin-bottom:28px;">Solo disponible para usuarios METARCO.</div>
       <button id="msLoginBtn" onclick="msLogin()" style="width:100%;padding:15px 24px;background:#0d1b3e;color:#fff;border:none;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;" onmouseover="this.style.background='#1a3d6b'" onmouseout="this.style.background='#0d1b3e'">
@@ -207,7 +204,6 @@ select option{background:var(--bg3);}
     </div>
   </div>
 </div>
-
 
 
 <!-- HEADER -->
@@ -1255,17 +1251,14 @@ document.getElementById('hdrDate').textContent=HOY.toLocaleDateString('es-MX',{w
 
 
 <script>
-/* ══════════════════════════════════════════════════
-   METARCO DASHBOARD — Microsoft Auth + OneDrive Sync
-   Injected layer — original code untouched above
-══════════════════════════════════════════════════ */
+/* METARCO DASHBOARD — Microsoft Auth + OneDrive Sync
+   Uses EXACT same data structure as original app */
 const MS_DASH = {
   clientId: '6f7f3d07-3e40-4396-8f76-36d0f818d72d',
   tenantId: '3fce0139-013b-4c64-a04d-8605a9eb8088',
-  admins:   ['a.medina@metarco.com.mx'],
   scopes:   ['Files.ReadWrite','User.Read'],
-  fileDash: 'METARCO/METARCO_Control_Gruas_Datos.json',
-  fileCot:  'METARCO/METARCO_Cotizador_Datos.json'
+  // Separate file that uses original Dashboard data structure
+  filePath: 'METARCO/METARCO_Dashboard_Datos.json'
 };
 
 const msalDash = new msal.PublicClientApplication({
@@ -1312,119 +1305,114 @@ async function msGetToken() {
 
 const GRAPH_D = 'https://graph.microsoft.com/v1.0';
 
-async function odDashRead(path) {
+async function odDashRead() {
   const tok = await msGetToken();
-  const r = await fetch(`${GRAPH_D}/me/drive/root:/${path}:/content`, { headers:{ Authorization:`Bearer ${tok}` } });
+  const r = await fetch(`${GRAPH_D}/me/drive/root:/${MS_DASH.filePath}:/content`,
+    { headers:{ Authorization:`Bearer ${tok}` }});
   if (r.status === 404) return null;
   return await r.json();
 }
 
-async function odDashWrite(path, data) {
+async function odDashWrite(data) {
   const tok = await msGetToken();
-  data._lastModified = new Date().toISOString();
-  await fetch(`${GRAPH_D}/me/drive/root:/${path}:/content`, {
+  data._ts = new Date().toISOString();
+  await fetch(`${GRAPH_D}/me/drive/root:/${MS_DASH.filePath}:/content`, {
     method: 'PUT',
     headers: { Authorization:`Bearer ${tok}`, 'Content-Type':'application/json' },
     body: JSON.stringify(data, null, 2)
   });
 }
 
-function odDashSetSync(text, isError) {
-  const bar = document.getElementById('folderBar');
-  const dot = document.getElementById('folderDot');
+function odDashStatus(text, ok=true) {
   const msg = document.getElementById('folderMsg');
-  if (!bar || !dot || !msg) return;
-  if (isError) {
-    dot.className = 'folder-dot off';
-    msg.style.color = 'var(--amber)';
-  } else {
-    dot.className = 'folder-dot on';
-    msg.style.color = 'var(--green)';
-  }
+  const dot = document.getElementById('folderDot');
+  if (!msg || !dot) return;
   msg.textContent = text;
+  msg.style.color = ok ? 'var(--green)' : 'var(--amber)';
+  dot.className = 'folder-dot ' + (ok ? 'on' : 'off');
 }
 
-async function odDashSaveAll() {
-  odDashSetSync('☁ Guardando en OneDrive...', false);
+async function odDashSaveNow() {
+  odDashStatus('☁ Guardando en OneDrive...');
   try {
+    // Save EXACT same structure as original app uses
     const data = { costos, venc, svcs, mant, alertas, pagos, ts: new Date().toISOString() };
-    await odDashWrite(MS_DASH.fileDash, data);
-    odDashSetSync('✓ OneDrive · Guardado automático activo', false);
+    await odDashWrite(data);
+    odDashStatus('✓ OneDrive · Sincronizado · ' + new Date().toLocaleTimeString('es-MX'));
   } catch(e) {
-    odDashSetSync('⚠ Error al guardar en OneDrive', true);
-    console.error('OneDrive save error:', e);
+    odDashStatus('⚠ Error al guardar en OneDrive', false);
+    console.error(e);
   }
 }
 
 function odDashScheduleSave() {
   if (dashSaveTimer) clearTimeout(dashSaveTimer);
-  dashSaveTimer = setTimeout(odDashSaveAll, 1500);
+  dashSaveTimer = setTimeout(odDashSaveNow, 1500);
 }
 
 async function msBootDash(account) {
-  // Hide login overlay
   document.getElementById('msLoginOverlay').style.display = 'none';
 
-  // Update folder bar to show OneDrive status instead of local folder
-  const bar = document.getElementById('folderBar');
+  // Update folder bar UI — repurpose for OneDrive
   const btnFolder = document.getElementById('btnFolder');
-  const btnSave = document.getElementById('btnSaveFile');
-  if (btnFolder) btnFolder.style.display = 'none';
-  if (btnSave) btnSave.textContent = '☁ GUARDAR AHORA';
-  if (btnSave) btnSave.onclick = () => odDashSaveAll();
+  const btnSave   = document.getElementById('btnSaveFile');
+  if (btnFolder) { btnFolder.textContent = 'GUARDAR AHORA'; btnFolder.onclick = () => odDashSaveNow(); }
+  if (btnSave)   { btnSave.style.display = 'none'; }
 
-  odDashSetSync('☁ Cargando desde OneDrive...', false);
-
-  try {
-    // Load from OneDrive → populate app state
-    const data = await odDashRead(MS_DASH.fileDash);
-    if (data) {
-      if (data.costos)  { costos  = data.costos;  lsSave(LS.c, costos);   }
-      if (data.venc)    { venc    = data.venc;     lsSave(LS.v, venc);     }
-      if (data.svcs)    { svcs    = data.svcs;     lsSave(LS.s, svcs);     }
-      if (data.mant)    { mant    = data.mant;     lsSave(LS.m, mant);     }
-      if (data.alertas) { alertas = data.alertas;  lsSave(LS.a, alertas);  }
-      if (data.pagos)   { pagos   = data.pagos;    lsSave(LS.p, pagos);    }
-      if (typeof renderResumen === 'function') renderResumen();
-    }
-    odDashSetSync(`✓ OneDrive · ${account.username} · Auto-guardado activo`, false);
-  } catch(e) {
-    odDashSetSync('⚠ Sin conexión — usando datos locales', true);
+  // Add logout button
+  const bar = document.getElementById('folderBar');
+  if (bar) {
+    const logoutBtn = document.createElement('button');
+    logoutBtn.textContent = 'Salir (' + account.username + ')';
+    logoutBtn.style.cssText = 'background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);padding:3px 10px;border-radius:4px;font-size:10px;cursor:pointer;font-family:var(--mono);letter-spacing:1px;margin-left:8px;';
+    logoutBtn.onclick = msLogout;
+    bar.querySelector('.folder-actions').appendChild(logoutBtn);
   }
 
-  // Override autoSave to also save to OneDrive
-  window._origAutoSave = window.autoSave;
-  window.autoSave = async function() {
-    if (window._origAutoSave) await window._origAutoSave();
+  odDashStatus('☁ Cargando desde OneDrive...');
+
+  try {
+    const data = await odDashRead();
+    if (data) {
+      // Load EXACT fields the original app expects
+      if (data.costos)  { costos  = data.costos;  lsSave(LS.c, costos);  }
+      if (data.venc)    { venc    = data.venc;     lsSave(LS.v, venc);    }
+      if (data.svcs)    { svcs    = data.svcs;     lsSave(LS.s, svcs);    }
+      if (data.mant)    { mant    = data.mant;     lsSave(LS.m, mant);    }
+      if (data.alertas) { alertas = data.alertas;  lsSave(LS.a, alertas); }
+      if (data.pagos)   { pagos   = data.pagos;    lsSave(LS.p, pagos);   }
+      if (typeof renderResumen === 'function') renderResumen();
+    }
+    odDashStatus('✓ OneDrive · Datos cargados · ' + account.username.split('@')[0]);
+  } catch(e) {
+    odDashStatus('⚠ Sin conexión — usando datos locales', false);
+  }
+
+  // Patch lsSave to also trigger OneDrive save
+  const _origLsSave = window.lsSave;
+  window.lsSave = function(k, d) {
+    _origLsSave(k, d);
     odDashScheduleSave();
   };
 
-  // Override saveToFolder to use OneDrive
-  window.saveToFolder = async function(manual) {
-    await odDashSaveAll();
-    if (manual && window.toast) toast('Guardado en OneDrive ✓');
+  // Override autoSave
+  window.autoSave = async function() {
+    lsSave(LS.c,costos); lsSave(LS.v,venc); lsSave(LS.s,svcs);
+    lsSave(LS.m,mant);   lsSave(LS.a,alertas); lsSave(LS.p,pagos);
+    // odDashScheduleSave already triggered by lsSave patch above
   };
 
-  // Override selectFolder (no longer needed with OneDrive)
-  window.selectFolder = function() {
-    toast('Los datos se guardan automáticamente en OneDrive');
-  };
-
-  // Logout button
-  const logoutBtn = document.createElement('button');
-  logoutBtn.textContent = 'Salir';
-  logoutBtn.style.cssText = 'background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-left:8px;';
-  logoutBtn.onclick = msLogout;
-  if (bar) bar.querySelector('.folder-actions').appendChild(logoutBtn);
+  // Override folder functions — not needed anymore
+  window.selectFolder    = () => toast('Datos guardados automáticamente en OneDrive');
+  window.saveToFolder    = async (manual) => { await odDashSaveNow(); if(manual && window.toast) toast('Guardado en OneDrive ✓'); };
+  window.loadFromFolder  = async () => {};
 }
 
 // Auto-login if session exists
 (async () => {
   await msalDash.initialize();
   const accounts = msalDash.getAllAccounts();
-  if (accounts.length > 0) {
-    await msBootDash(accounts[0]);
-  }
+  if (accounts.length > 0) await msBootDash(accounts[0]);
 })();
 </script>
 
