@@ -1,1388 +1,1431 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>METARCO · Control de Grúas</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js"></script>
-  <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+<!-- saved from url=(0057)file:///C:/Users/arme1/Downloads/METARCO_Dashboard_4.html -->
+<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
-    :root {
-      --bg-dark:       #0a1628;
-      --bg-mid:        #1a3d6b;
-      --bg-gradient:   radial-gradient(ellipse at 50% 80%, #1a3d6b 0%, #0a1628 70%);
-      --card-bg:       #ffffff;
-      --card-radius:   16px;
-      --card-shadow:   0 4px 24px rgba(0,0,0,0.28);
-      --card-padding:  24px;
-      --text-light:    #ffffff;
-      --text-muted:    rgba(255,255,255,0.6);
-      --text-dark:     #1a1a2e;
-      --text-gray:     #64748b;
-      --blue-ms:       #0078d4;
-      --blue-hover:    #106ebe;
-      --color-ok:      #22c55e;
-      --color-warn:    #f59e0b;
-      --color-danger:  #ef4444;
-      --color-info:    #3b82f6;
-      --border-light:  rgba(255,255,255,0.12);
-      --border-card:   rgba(0,0,0,0.08);
-      --font-brand:    'Orbitron', sans-serif;
-      --font-ui:       'Inter', sans-serif;
-      --sidebar-w:     220px;
-      --header-h:      64px;
-    }
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>METARCO — Dashboard de Mantenimiento</title>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080b10;--bg2:#0d1118;--bg3:#111820;
+  --blue-dk:#0d1b3e;--blue-md:#123882;--blue:#1565C0;--blue-lt:#0ea5e9;
+  --amber:#f59e0b;--green:#22c55e;--red:#ef4444;--yellow:#eab308;
+  --text:#e2e8f0;--dim:#94a3b8;--x:#475569;--border:#1e2d45;
+  --mono:'Share Tech Mono',monospace;--sans:'Rajdhani',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;min-height:100vh;}
 
-    body {
-      min-height: 100vh;
-      background: var(--bg-gradient);
-      font-family: var(--font-ui);
-      color: var(--text-light);
-      line-height: 1.5;
-    }
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#0d1b3e 0%,#123882 55%,#0d1b3e 100%);border-bottom:2px solid var(--blue-lt);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;}
+.hdr-logo{font-family:var(--sans);font-weight:700;font-size:21px;letter-spacing:4px;color:#fff;}
+.hdr-logo span{color:var(--amber);}
+.hdr-sub{font-family:var(--mono);font-size:9px;color:var(--blue-lt);letter-spacing:2px;margin-top:2px;}
+.hdr-date{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right;}
+.hdr-ver{font-family:var(--mono);font-size:9px;color:var(--x);margin-top:2px;text-align:right;}
 
-    /* ===== LOGIN ===== */
-    #loginScreen {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-    .login-card {
-      background: var(--card-bg);
-      border-radius: var(--card-radius);
-      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
-      padding: 44px 36px;
-      width: 100%;
-      max-width: 360px;
-      color: var(--text-dark);
-      text-align: center;
-    }
-    .login-logo {
-      width: 76px; height: 76px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #0a1628, #1a3d6b);
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 20px;
-      border: 3px solid rgba(0,120,212,0.3);
-      box-shadow: 0 0 30px rgba(0,120,212,0.2);
-    }
+/* FOLDER TOOLBAR */
+.folder-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 28px;border-bottom:1px solid var(--border);transition:background .3s;}
+.folder-bar.disconnected{background:rgba(245,158,11,.07);border-bottom-color:rgba(245,158,11,.3);}
+.folder-bar.connected{background:rgba(34,197,94,.05);border-bottom-color:rgba(34,197,94,.2);}
+.folder-info{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;}
+.folder-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.folder-dot.off{background:var(--amber);box-shadow:0 0 6px var(--amber);}
+.folder-dot.on{background:var(--green);box-shadow:0 0 6px var(--green);}
+.folder-actions{display:flex;gap:8px;}
 
-    /* ===== APP SHELL ===== */
-    #appShell { display: none; height: 100vh; flex-direction: column; }
-    #appShell.visible { display: flex; }
+/* TABS */
+.tabs{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;padding:0 24px;gap:2px;overflow-x:auto;}
+.tab{padding:13px 18px;font-family:var(--sans);font-weight:600;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--x);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;user-select:none;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--blue-lt);border-bottom-color:var(--blue-lt);}
 
-    /* ===== HEADER ===== */
-    .app-header {
-      height: var(--header-h);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 28px;
-      background: rgba(0,0,0,0.25);
-      border-bottom: 1px solid var(--border-light);
-      flex-shrink: 0;
-      backdrop-filter: blur(8px);
-    }
-    .header-brand { display: flex; align-items: center; gap: 14px; }
-    .header-logo-box {
-      width: 38px; height: 38px; border-radius: 10px;
-      background: linear-gradient(135deg,#0a1628,#1a3d6b);
-      display: flex; align-items: center; justify-content: center;
-      border: 1px solid rgba(255,255,255,0.15);
-    }
-    .brand-name {
-      font-family: var(--font-brand); font-weight: 700;
-      font-size: 14px; letter-spacing: 3px;
-    }
-    .brand-sub {
-      font-family: var(--font-brand); font-weight: 700;
-      font-size: 9px; letter-spacing: 2px; color: var(--text-muted);
-    }
-    .header-right { display: flex; align-items: center; gap: 20px; }
-    .sync-pill {
-      display: flex; align-items: center; gap: 7px;
-      font-size: 12px; color: var(--text-muted);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid var(--border-light);
-      border-radius: 20px;
-      padding: 5px 12px;
-    }
-    .sync-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--color-ok);
-      transition: background 0.3s;
-    }
-    .sync-dot.syncing { background: var(--color-warn); animation: blink 1s infinite; }
-    .sync-dot.error   { background: var(--color-danger); }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-    .user-chip {
-      display: flex; align-items: center; gap: 10px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid var(--border-light);
-      border-radius: 24px;
-      padding: 5px 14px 5px 6px;
-    }
-    .user-avatar {
-      width: 28px; height: 28px; border-radius: 50%;
-      background: var(--blue-ms);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 12px; color: #fff;
-    }
-    .user-name { font-size: 13px; font-weight: 600; }
-    .user-role { font-size: 10px; color: var(--text-muted); }
+/* CONTENT */
+.content{padding:22px;max-width:1440px;margin:0 auto;}
+.sec{display:none;animation:fi .22s ease;}
+.sec.active{display:block;}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 
-    /* ===== LAYOUT ===== */
-    .app-body { display: flex; flex: 1; overflow: hidden; }
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
 
-    /* ===== SIDEBAR ===== */
-    .sidebar {
-      width: var(--sidebar-w);
-      flex-shrink: 0;
-      background: rgba(0,0,0,0.2);
-      border-right: 1px solid var(--border-light);
-      padding: 20px 12px;
-      overflow-y: auto;
-    }
-    .nav-label {
-      font-family: var(--font-brand);
-      font-size: 8px; letter-spacing: 2.5px;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.35);
-      padding: 10px 12px 6px;
-    }
-    .nav-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      font-size: 13px; font-weight: 500;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.15s;
-      border: none; background: transparent;
-      width: 100%; text-align: left;
-      margin-bottom: 2px;
-    }
-    .nav-item:hover { background: rgba(255,255,255,0.08); color: var(--text-light); }
-    .nav-item.active { background: var(--blue-ms); color: #fff; }
-    .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+/* CARD */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;}
+.card-title{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--blue-lt);margin-bottom:14px;}
 
-    /* ===== MAIN ===== */
-    .main-content { flex: 1; overflow-y: auto; padding: 28px 32px; }
+/* KPI */
+.kpi{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:14px;}
+.kpi-lbl{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--x);text-transform:uppercase;margin-bottom:5px;}
+.kpi-val{font-family:var(--mono);font-size:20px;color:var(--text);}
+.kpi-val.amber{color:var(--amber);}
+.kpi-val.green{color:var(--green);}
+.kpi-val.red{color:var(--red);}
+.kpi-val.blue{color:var(--blue-lt);}
+.kpi-sub{font-family:var(--mono);font-size:10px;color:var(--x);margin-top:3px;}
 
-    .sec-header { margin-bottom: 24px; }
-    .sec-title {
-      font-family: var(--font-brand); font-weight: 700;
-      font-size: 17px; letter-spacing: 3px;
-    }
-    .sec-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+/* UNIT CARD */
+.unit-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.unit-hdr{background:linear-gradient(90deg,var(--blue-dk),var(--blue-md));padding:14px 18px;display:flex;justify-content:space-between;align-items:center;}
+.unit-id{font-family:var(--sans);font-weight:700;font-size:30px;letter-spacing:6px;color:#fff;}
+.unit-name{font-family:var(--mono);font-size:9px;color:var(--blue-lt);letter-spacing:1px;margin-top:1px;}
+.unit-cap-val{font-family:var(--mono);font-size:22px;color:var(--amber);text-align:right;}
+.unit-cap-lbl{font-family:var(--mono);font-size:9px;color:var(--dim);text-align:right;}
+.unit-body{padding:14px 18px;}
+.pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+.pill{background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.3);border-radius:3px;padding:2px 9px;font-family:var(--mono);font-size:9px;color:var(--blue-lt);}
+.pill.amber{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--amber);}
 
-    /* ===== CARDS ===== */
-    .card {
-      background: var(--card-bg);
-      border-radius: var(--card-radius);
-      box-shadow: var(--card-shadow);
-      padding: var(--card-padding);
-      color: var(--text-dark);
-    }
-    .card-dark {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid var(--border-light);
-      border-radius: var(--card-radius);
-      padding: var(--card-padding);
-    }
-    .card-title {
-      font-family: var(--font-brand); font-weight: 700;
-      font-size: 11px; letter-spacing: 1.5px;
-      color: var(--text-dark);
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border-card);
-      display: flex; align-items: center; gap: 8px;
-    }
+/* SEMAFORO */
+.sem-row{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid rgba(30,45,69,.5);}
+.sem-row:last-child{border-bottom:none;}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.dot.green{background:var(--green);box-shadow:0 0 7px var(--green);}
+.dot.yellow{background:var(--yellow);box-shadow:0 0 7px var(--yellow);}
+.dot.red{background:var(--red);box-shadow:0 0 7px var(--red);}
+.dot.gray{background:var(--x);}
+.sem-lbl{flex:1;font-family:var(--sans);font-size:13px;font-weight:500;}
+.sem-date{font-family:var(--mono);font-size:11px;color:var(--dim);}
+.sem-days{font-family:var(--mono);font-size:11px;font-weight:700;min-width:100px;text-align:right;}
+.sem-days.green{color:var(--green);}.sem-days.yellow{color:var(--yellow);}
+.sem-days.red{color:var(--red);}.sem-days.gray{color:var(--x);}
 
-    /* ===== GRID ===== */
-    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-    .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+/* PROGRESS BAR */
+.prog-wrap{background:var(--bg);border-radius:3px;height:5px;overflow:hidden;margin-top:6px;}
+.prog-fill{height:100%;border-radius:3px;transition:width .5s;}
+.prog-fill.green{background:var(--green);}
+.prog-fill.yellow{background:var(--yellow);}
+.prog-fill.red{background:var(--red);}
 
-    /* ===== STAT CARDS ===== */
-    .stat-card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 16px 20px;
-      color: var(--text-dark);
-      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-    }
-    .stat-val {
-      font-family: var(--font-brand); font-weight: 900;
-      font-size: 22px; color: var(--text-dark);
-    }
-    .stat-lbl {
-      font-size: 10px; color: var(--text-gray);
-      margin-top: 4px;
-      text-transform: uppercase; letter-spacing: 0.5px;
-    }
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-family:var(--sans);font-size:13px;}
+th{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--x);padding:9px 11px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:9px 11px;border-bottom:1px solid rgba(30,45,69,.4);color:var(--text);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(14,165,233,.03);}
+.mc{font-family:var(--mono);font-size:12px;}
+.total-row td{border-top:2px solid var(--border) !important;color:var(--amber);font-family:var(--mono);}
 
-    /* ===== TABLES ===== */
-    .tbl-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th {
-      font-family: var(--font-ui); font-weight: 600;
-      font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-      color: var(--text-gray);
-      border-bottom: 1px solid var(--border-card);
-      padding: 10px 12px; text-align: left;
-    }
-    td {
-      padding: 11px 12px;
-      border-bottom: 1px solid var(--border-card);
-      color: var(--text-dark); font-size: 13px;
-    }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(0,120,212,0.04); }
-    .tr-empty td { color: #94a3b8; text-align: center; padding: 36px; }
+/* FORM */
+input,select,textarea{background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:14px;padding:8px 11px;width:100%;transition:border-color .2s;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-lt);}
+input[type="number"]{font-family:var(--mono);}
+label{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--x);text-transform:uppercase;display:block;margin-bottom:5px;}
+.fg{margin-bottom:13px;}
+select option{background:var(--bg3);}
 
-    /* ===== BADGES ===== */
-    .badge {
-      display: inline-block;
-      padding: 2px 9px;
-      border-radius: 20px;
-      font-weight: 600; font-size: 10px;
-      letter-spacing: 0.5px; text-transform: uppercase;
-    }
-    .b-admin    { background: rgba(59,130,246,0.18); color:#93c5fd; }
-    .b-operador { background: rgba(245,158,11,0.18); color:#fcd34d; }
-    .b-ok       { background: rgba(34,197,94,0.15);  color:#22c55e; }
-    .b-warn     { background: rgba(245,158,11,0.15); color:#f59e0b; }
-    .b-error    { background: rgba(239,68,68,0.15);  color:#ef4444; }
-    .b-t1       { background: rgba(0,120,212,0.15);  color:#60a5fa; }
-    .b-t2       { background: rgba(245,158,11,0.18); color:#fcd34d; }
+/* COST INPUT */
+.cinp{background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--amber);font-family:var(--mono);font-size:12px;padding:4px 7px;width:115px;text-align:right;}
+.cinp:focus{outline:none;border-color:var(--amber);}
 
-    /* ===== BUTTONS ===== */
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      gap: 7px; border: none; border-radius: 10px;
-      font-family: var(--font-ui); font-weight: 600;
-      font-size: 13px; cursor: pointer; padding: 10px 18px;
-      transition: background 0.15s, opacity 0.15s;
-    }
-    .btn-ms {
-      background: var(--blue-ms); color: #fff;
-      width: 100%; padding: 14px 24px; font-size: 15px; border-radius: 12px;
-    }
-    .btn-ms:hover { background: var(--blue-hover); }
-    .btn-primary { background: var(--blue-ms); color: #fff; }
-    .btn-primary:hover { background: var(--blue-hover); }
-    .btn-ghost { background: rgba(255,255,255,0.1); color: var(--text-light); border: 1px solid var(--border-light); }
-    .btn-ghost:hover { background: rgba(255,255,255,0.18); }
-    .btn-outline { background: transparent; color: var(--text-gray); border: 1px solid var(--border-card); }
-    .btn-outline:hover { background: rgba(0,120,212,0.08); color: var(--blue-ms); border-color: var(--blue-ms); }
-    .btn-danger { background: var(--color-danger); color: #fff; }
-    .btn-sm { padding: 5px 11px; font-size: 11px; border-radius: 7px; }
+/* BUTTONS */
+.btn{padding:9px 18px;border-radius:4px;border:none;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:12px;letter-spacing:1px;text-transform:uppercase;transition:all .2s;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue-lt);}
+.btn-amber{background:var(--amber);color:#000;}
+.btn-amber:hover{background:#fbbf24;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--dim);}
+.btn-ghost:hover{border-color:var(--blue-lt);color:var(--blue-lt);}
+.btn-folder{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:var(--amber);padding:5px 14px;font-family:var(--mono);font-size:10px;letter-spacing:1px;border-radius:3px;cursor:pointer;transition:all .2s;}
+.btn-folder:hover{background:rgba(245,158,11,.25);}
+.btn-folder.green{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:var(--green);}
+.btn-sm{padding:3px 8px;font-size:10px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-family:var(--mono);transition:all .2s;}
+.btn-sm:hover{border-color:var(--blue-lt);color:var(--blue-lt);}
+.btn-sm.danger{border-color:rgba(239,68,68,.3);color:var(--red);}
+.btn-sm.danger:hover{background:var(--red);color:#fff;}
+.btn-sm.ok{border-color:rgba(34,197,94,.3);color:var(--green);}
+.btn-sm.ok:hover{background:var(--green);color:#000;}
 
-    /* ===== INPUTS ===== */
-    .inp, .sel {
-      width: 100%; padding: 10px 14px;
-      border: 1.5px solid var(--border-card);
-      border-radius: 10px; font-family: var(--font-ui);
-      font-size: 13px; color: var(--text-dark);
-      background: #fff; outline: none;
-      transition: border-color 0.15s;
-    }
-    .inp:focus, .sel:focus { border-color: var(--blue-ms); }
-    .inp::placeholder { color: #94a3b8; }
-    .lbl {
-      font-size: 10px; font-weight: 600; color: var(--text-gray);
-      display: block; margin-bottom: 6px;
-      text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .fg { margin-bottom: 14px; }
+/* SECTION HEADER */
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+.sec-title{font-family:var(--sans);font-weight:700;font-size:19px;letter-spacing:2px;}
 
-    /* ===== SEMAFORO ===== */
-    .dot {
-      width: 9px; height: 9px; border-radius: 50%;
-      display: inline-block; flex-shrink: 0;
-    }
-    .dot-ok    { background: var(--color-ok); }
-    .dot-warn  { background: var(--color-warn); }
-    .dot-error { background: var(--color-danger); }
+/* BADGES */
+.badge{display:inline-block;padding:2px 7px;border-radius:3px;font-family:var(--mono);font-size:9px;letter-spacing:.5px;font-weight:700;}
+.badge-blue{background:rgba(14,165,233,.15);color:var(--blue-lt);border:1px solid rgba(14,165,233,.3);}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);}
+.badge-yellow{background:rgba(234,179,8,.15);color:var(--yellow);border:1px solid rgba(234,179,8,.3);}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+.badge-amber{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.3);}
 
-    /* ===== PROGRESS ===== */
-    .prog { height: 5px; background: rgba(0,0,0,0.08); border-radius: 3px; overflow:hidden; margin-top:7px; }
-    .prog-fill { height: 100%; border-radius: 3px; background: var(--color-ok); transition: width .3s; }
-    .prog-fill.warn  { background: var(--color-warn); }
-    .prog-fill.error { background: var(--color-danger); }
+/* SUB-LABEL */
+.sub-lbl{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--x);text-transform:uppercase;margin:18px 0 10px;display:flex;align-items:center;gap:10px;}
+.sub-lbl::after{content:'';flex:1;height:1px;background:var(--border);}
 
-    /* ===== MODAL ===== */
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 1000; backdrop-filter: blur(5px);
-    }
-    .modal-overlay.hidden { display: none; }
-    .modal {
-      background: var(--card-bg);
-      border-radius: var(--card-radius);
-      padding: 28px; width: 100%; max-width: 500px;
-      max-height: 88vh; overflow-y: auto;
-      color: var(--text-dark);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    }
-    .modal-title {
-      font-family: var(--font-brand); font-size: 12px;
-      font-weight: 700; letter-spacing: 1.5px;
-      margin-bottom: 20px; padding-bottom: 14px;
-      border-bottom: 1px solid var(--border-card);
-    }
-    .modal-actions {
-      display: flex; gap: 10px; justify-content: flex-end;
-      margin-top: 20px; padding-top: 16px;
-      border-top: 1px solid var(--border-card);
-    }
+/* ALERT CARD (preventivo) */
+.alert-card{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;}
+.alert-card .dot{margin-top:4px;width:10px;height:10px;flex-shrink:0;}
+.alert-body{flex:1;}
+.alert-title{font-family:var(--sans);font-weight:600;font-size:14px;}
+.alert-meta{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px;}
+.alert-stat{font-family:var(--mono);font-size:11px;margin-top:6px;display:flex;justify-content:space-between;}
+.alert-actions{display:flex;gap:5px;margin-top:8px;}
 
-    /* ===== TOAST ===== */
-    .toast {
-      position: fixed; bottom: 24px; right: 24px;
-      background: #1e293b; color: #fff;
-      padding: 12px 20px; border-radius: 10px;
-      font-size: 13px; font-weight: 500;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-      z-index: 2000; opacity: 1; transition: opacity .3s;
-      border-left: 3px solid var(--blue-ms);
-    }
-    .toast.hidden { display: none; }
+/* MODAL */
+.overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.78);z-index:200;justify-content:center;align-items:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:22px;width:500px;max-width:95vw;max-height:92vh;overflow-y:auto;}
+.modal-title{font-family:var(--sans);font-weight:700;font-size:15px;letter-spacing:2px;color:var(--blue-lt);margin-bottom:18px;text-transform:uppercase;}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
 
-    /* ===== UTILS ===== */
-    .flex { display: flex; }
-    .ic { align-items: center; }
-    .jb { justify-content: space-between; }
-    .g8  { gap: 8px; }
-    .g12 { gap: 12px; }
-    .g16 { gap: 16px; }
-    .mt8  { margin-top: 8px; }
-    .mt16 { margin-top: 16px; }
-    .mt20 { margin-top: 20px; }
-    .mb16 { margin-bottom: 16px; }
-    .mb20 { margin-bottom: 20px; }
-    .tr { text-align: right; }
-    .tc { text-align: center; }
-    .w100 { width: 100%; }
-    .hidden { display: none !important; }
+/* IND ROW */
+.ind-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(30,45,69,.4);}
+.ind-row:last-child{border-bottom:none;}
+.ind-lbl{font-family:var(--mono);font-size:10px;color:var(--x);}
+.ind-val{font-family:var(--mono);font-size:12px;}
 
-    /* ===== ADMIN PROTECTED BADGE ===== */
-    .admin-section-tag {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-size: 10px; color: rgba(0,120,212,0.8);
-      background: rgba(0,120,212,0.08);
-      border: 1px solid rgba(0,120,212,0.2);
-      border-radius: 6px; padding: 2px 8px;
-      font-weight: 600;
-    }
-  </style>
+@media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr;}}
+@media(max-width:600px){.content{padding:10px;}.tabs{padding:0 10px;}.tab{padding:10px 11px;font-size:10px;}.hdr,.folder-bar{padding:0 14px;}}
+</style>
 </head>
 <body>
 
-<!-- ======================================================
-     LOGIN SCREEN
-====================================================== -->
-<div id="loginScreen">
+<!-- ══════════════════════════════════════════════════
+     METARCO MICROSOFT LOGIN OVERLAY
+══════════════════════════════════════════════════ -->
+<div id="msLoginOverlay" style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 80%,#1a3d6b 0%,#0a1628 70%);">
   <div style="display:flex;flex-direction:column;align-items:center;">
-
-    <!-- Logo encima de la card -->
     <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,0.25);box-shadow:0 4px 24px rgba(0,0,0,0.4);margin-bottom:-45px;z-index:10;position:relative;background:#0a1628;">
-      <img src="https://raw.githubusercontent.com/arme183/metarco-gruas/main/LOGO%20METARCO1.png"
-           style="width:100%;height:100%;object-fit:cover;"
-           onerror="this.style.display='none'">
+      <img src="https://raw.githubusercontent.com/arme183/metarco-gruas/main/LOGO%20METARCO1.png" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
     </div>
-
-    <!-- Card -->
     <div style="background:#f0f4f8;border-radius:20px;padding:60px 48px 36px;width:100%;max-width:520px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.35);">
-
-      <div style="font-family:'Orbitron';font-weight:900;font-size:28px;letter-spacing:5px;color:#0d1b3e;margin-bottom:6px;">METARCO</div>
-      <div style="font-family:'Orbitron';font-weight:700;font-size:9px;letter-spacing:3px;color:#64748b;margin-bottom:28px;">CONTROL DE GRÚAS</div>
-
-      <div style="font-family:'Inter';font-weight:700;font-size:16px;color:#0d1b3e;margin-bottom:6px;">Acceso restringido</div>
-      <div style="font-family:'Inter';font-weight:400;font-size:13px;color:#64748b;margin-bottom:28px;">Solo disponible para usuarios METARCO.</div>
-
-      <button onclick="login()" style="width:100%;padding:15px 24px;background:#0d1b3e;color:#fff;border:none;border-radius:12px;font-family:'Inter';font-weight:600;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;transition:background 0.15s;"
-        onmouseover="this.style.background='#1a3d6b'" onmouseout="this.style.background='#0d1b3e'">
-        <svg width="20" height="20" viewBox="0 0 21 21" aria-hidden="true">
-          <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
-          <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
-          <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
-          <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-        </svg>
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:28px;letter-spacing:5px;color:#0d1b3e;margin-bottom:6px;">METARCO</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:#64748b;margin-bottom:28px;">CONTROL DE GRÚAS</div>
+      <div style="font-weight:700;font-size:16px;color:#0d1b3e;margin-bottom:6px;">Acceso restringido</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:28px;">Solo disponible para usuarios METARCO.</div>
+      <button id="msLoginBtn" onclick="msLogin()" style="width:100%;padding:15px 24px;background:#0d1b3e;color:#fff;border:none;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;" onmouseover="this.style.background='#1a3d6b'" onmouseout="this.style.background='#0d1b3e'">
+        <svg width="20" height="20" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
         Iniciar sesión con Microsoft
       </button>
-
-      <div id="loginError" class="hidden" style="margin-top:14px;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:9px;font-size:12px;color:#ef4444;text-align:left;line-height:1.5;"></div>
+      <div id="msLoginError" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:9px;font-size:12px;color:#ef4444;text-align:left;"></div>
     </div>
-
-    <!-- Footer -->
-    <div style="margin-top:24px;display:flex;align-items:center;gap:8px;font-family:'Inter';font-size:12px;color:rgba(255,255,255,0.5);">
+    <div style="margin-top:24px;display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.5);">
       <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
       Sistema activo · METARCO 2026
     </div>
-
   </div>
 </div>
 
-<!-- ======================================================
-     APP SHELL
-====================================================== -->
-<div id="appShell">
 
-  <!-- HEADER -->
-  <header class="app-header">
-    <div class="header-brand">
-      <div class="header-logo-box" style="overflow:hidden;padding:0;border-radius:10px;"><img src="https://raw.githubusercontent.com/arme183/metarco-gruas/main/LOGO%20METARCO1.png" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'"></div>
-      <div>
-        <div class="brand-name">METARCO</div>
-        <div class="brand-sub">CONTROL DE GRÚAS</div>
-      </div>
-    </div>
 
-    <div class="header-right">
-      <div class="sync-pill">
-        <div class="sync-dot" id="syncDot"></div>
-        <span id="syncText" style="font-size:11px;">Sincronizado</span>
-      </div>
-      <div class="user-chip">
-        <div class="user-avatar" id="userAvatar">A</div>
-        <div>
-          <div class="user-name" id="userName">—</div>
-          <div class="user-role" id="userRoleLbl">—</div>
+<!-- HEADER -->
+<div class="hdr">
+  <div><div class="hdr-logo">META<span>R</span>CO</div><div class="hdr-sub">DASHBOARD DE MANTENIMIENTO · GRÚAS T1 &amp; T2</div></div>
+  <div><div class="hdr-date" id="hdrDate">SÁBADO, 23 DE MAYO DE 2026</div><div class="hdr-ver">FASE 2 · v2.0</div></div>
+</div>
+
+<!-- FOLDER TOOLBAR -->
+<div class="folder-bar connected" id="folderBar">
+  <div class="folder-info">
+    <div class="folder-dot on" id="folderDot"></div>
+    <span id="folderMsg" style="color: var(--green);">✓ Carpeta conectada · METARCO_Dashboard_Datos.json · Auto-guardado activo</span>
+  </div>
+  <div class="folder-actions">
+    <button class="btn-folder" id="btnFolder" onclick="selectFolder()">CAMBIAR CARPETA</button>
+    <button class="btn-folder green" id="btnSaveFile" onclick="saveToFolder(true)" style="display: inline-block;">💾 GUARDAR ARCHIVO</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" data-tab="resumen">📊 Resumen</div>
+  <div class="tab" data-tab="costos">💰 Costos</div>
+  <div class="tab" data-tab="vencimientos">🔔 Vencimientos</div>
+  <div class="tab" data-tab="servicios">📋 Servicios</div>
+  <div class="tab" data-tab="mantenimiento">🔧 Mantenimiento</div>
+  <div class="tab" data-tab="alertas">⚡ Alertas</div>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- ===== RESUMEN ===== -->
+  <div id="sec-resumen" class="sec active">
+    <div class="g2" style="margin-bottom:18px;">
+      <div class="unit-card">
+        <div class="unit-hdr">
+          <div><div class="unit-id">T1</div><div class="unit-name">INTERNATIONAL NAVISTAR 8175 · 1998 · TEREX TC2863</div></div>
+          <div><div class="unit-cap-val">14 ton</div><div class="unit-cap-lbl">CAP. MÁX</div></div>
+        </div>
+        <div class="unit-body">
+          <div class="pills">
+            <div class="pill">🎯 BOLA RÁPIDA 4.3 t</div>
+            <div class="pill amber">⛵ AGUILÓN 6 m</div>
+            <div class="pill">PLUMA 14.3 m</div>
+            <div class="pill amber" title="Altura máxima verificada en campo · Estadio Corregidora · El dato del fabricante (34.4 m) corresponde a aguilón 40ft — METARCO opera con aguilón 6m">↑ ALT. MÁX ~24 m c/aguilón ✓</div>
+          </div>
+          <div class="g2" style="gap:10px;">
+            <div class="kpi" style="padding:11px;"><div class="kpi-lbl">Costo Fijo / Mes</div><div class="kpi-val amber" id="r-t1-fijo">$24,300</div></div>
+            <div class="kpi" style="padding:11px;"><div class="kpi-lbl">Pto. Equilibrio</div><div class="kpi-val blue" id="r-t1-eq">31.6 hrs</div></div>
+          </div>
         </div>
       </div>
-      <button class="btn btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="logout()">
-        Salir
-      </button>
+      <div class="unit-card">
+        <div class="unit-hdr">
+          <div><div class="unit-id">T2</div><div class="unit-name">PETERBILT 330 · 2003 · TEREX RO BT4792</div></div>
+          <div><div class="unit-cap-val">23 ton</div><div class="unit-cap-lbl">CAP. MÁX</div></div>
+        </div>
+        <div class="unit-body">
+          <div class="pills">
+            <div class="pill">🎯 BOLA RÁPIDA 4.7 t</div>
+            <div class="pill">⚓ GANCHO DOBLE 9.5 t</div>
+            <div class="pill amber">⛵ AGUILÓN 6 m</div>
+            <div class="pill">PLUMA 28 m</div>
+          </div>
+          <div class="g2" style="gap:10px;">
+            <div class="kpi" style="padding:11px;"><div class="kpi-lbl">Costo Fijo / Mes</div><div class="kpi-val amber" id="r-t2-fijo">$28,500</div></div>
+            <div class="kpi" style="padding:11px;"><div class="kpi-lbl">Pto. Equilibrio</div><div class="kpi-val blue" id="r-t2-eq">31.0 hrs</div></div>
+          </div>
+        </div>
+      </div>
     </div>
-  </header>
 
-  <!-- BODY -->
-  <div class="app-body">
+    <div class="sub-lbl">Mes en curso</div>
+    <div class="g4" style="margin-bottom:18px;">
+      <div class="kpi"><div class="kpi-lbl">Servicios</div><div class="kpi-val blue" id="r-svcs">0</div><div class="kpi-sub">este mes</div></div>
+      <div class="kpi"><div class="kpi-lbl">Ingresos Mes</div><div class="kpi-val green" id="r-ingr">$0</div></div>
+      <div class="kpi"><div class="kpi-lbl">Costos Variables</div><div class="kpi-val amber" id="r-cvar">$0</div></div>
+      <div class="kpi"><div class="kpi-lbl">Margen Bruto</div><div class="kpi-val" id="r-margen" style="color: var(--green);">$0</div><div class="kpi-sub">antes de fijos</div></div>
+    </div>
 
-    <!-- SIDEBAR -->
-    <nav class="sidebar">
-      <div class="nav-label">Operación</div>
-      <button class="nav-item" data-sec="vencimientos" onclick="navigate('vencimientos')">
-        <span class="nav-icon">📋</span> Vencimientos
-      </button>
-      <button class="nav-item" data-sec="servicios" onclick="navigate('servicios')">
-        <span class="nav-icon">🏗️</span> Servicios
-      </button>
-      <button class="nav-item" data-sec="mantenimiento" onclick="navigate('mantenimiento')">
-        <span class="nav-icon">🔧</span> Mantenimiento
-      </button>
-      <button class="nav-item" data-sec="historial" onclick="navigate('historial')">
-        <span class="nav-icon">📁</span> Historial
-      </button>
-      <div class="nav-label admin-only" style="margin-top:8px;">Administración</div>
-      <button class="nav-item admin-only" data-sec="costos" onclick="navigate('costos')">
-        <span class="nav-icon">💰</span> Costos
-      </button>
-      <button class="nav-item admin-only" data-sec="pagos" onclick="navigate('pagos')">
-        <span class="nav-icon">💳</span> Pagos
-      </button>
-    </nav>
+    <div class="sub-lbl">Vencimientos próximos</div>
+    <div class="card" id="r-venc-box" style="margin-bottom:18px;"><div class="sem-row"><div class="dot green"></div><span class="badge badge-blue" style="margin-right:5px;">T1</span><span class="sem-lbl">Verificación vehicular</span><span class="sem-date">2027-05-23</span><span class="sem-days green">365 días</span></div><div class="sem-row"><div class="dot green"></div><span class="badge badge-blue" style="margin-right:5px;">T1</span><span class="sem-lbl">Póliza de seguro</span><span class="sem-date">2027-05-23</span><span class="sem-days green">365 días</span></div><div class="sem-row"><div class="dot green"></div><span class="badge badge-blue" style="margin-right:5px;">T1</span><span class="sem-lbl">Permiso SCT</span><span class="sem-date">2027-05-23</span><span class="sem-days green">365 días</span></div><div class="sem-row"><div class="dot green"></div><span class="badge badge-blue" style="margin-right:5px;">T1</span><span class="sem-lbl">Certificación pluma DIAL-1054/23</span><span class="sem-date">2027-05-23</span><span class="sem-days green">365 días</span></div><div class="sem-row"><div class="dot green"></div><span class="badge badge-blue" style="margin-right:5px;">T2</span><span class="sem-lbl">Verificación vehicular</span><span class="sem-date">2027-05-23</span><span class="sem-days green">365 días</span></div><div class="sem-row"><div class="dot green"></div><span class="badge badge-blue" style="margin-right:5px;">T2</span><span class="sem-lbl">Póliza de seguro</span><span class="sem-date">2027-05-23</span><span class="sem-days green">365 días</span></div></div>
 
-    <!-- MAIN -->
-    <main class="main-content" id="mainContent"></main>
+    <div class="sub-lbl">Pagos próximos</div>
+    <div class="card" id="r-pagos-box"><div class="sem-row"><div class="dot red"></div><span class="badge badge-amber" style="margin-right:5px;">T1</span><span class="sem-lbl">Prima seguro T1</span><span style="font-family:var(--mono);font-size:11px;color:var(--amber);margin-right:8px;">$3,500</span><span class="sem-date">2026-06-01</span><span class="sem-days red">9 días</span></div><div class="sem-row"><div class="dot red"></div><span class="badge badge-amber" style="margin-right:5px;">T2</span><span class="sem-lbl">Prima seguro T2</span><span style="font-family:var(--mono);font-size:11px;color:var(--amber);margin-right:8px;">$5,000</span><span class="sem-date">2026-06-01</span><span class="sem-days red">9 días</span></div><div class="sem-row"><div class="dot red"></div><span class="badge badge-amber" style="margin-right:5px;">T1</span><span class="sem-lbl">IMSS operador T1</span><span style="font-family:var(--mono);font-size:11px;color:var(--amber);margin-right:8px;">$5,000</span><span class="sem-date">2026-06-01</span><span class="sem-days red">9 días</span></div><div class="sem-row"><div class="dot red"></div><span class="badge badge-amber" style="margin-right:5px;">T2</span><span class="sem-lbl">IMSS operador T2</span><span style="font-family:var(--mono);font-size:11px;color:var(--amber);margin-right:8px;">$5,600</span><span class="sem-date">2026-06-01</span><span class="sem-days red">9 días</span></div><div class="sem-row"><div class="dot green"></div><span class="badge badge-amber" style="margin-right:5px;">T1</span><span class="sem-lbl">Permiso SCT T1</span><span style="font-family:var(--mono);font-size:11px;color:var(--amber);margin-right:8px;">$500</span><span class="sem-date">2027-05-23</span><span class="sem-days green">365 días</span></div></div>
+  </div>
+
+  <!-- ===== COSTOS ===== -->
+  <div id="sec-costos" class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title">Estructura de Costos</div>
+      <button class="btn btn-amber" onclick="saveCostos()">💾 GUARDAR CAMBIOS</button>
+    </div>
+    <div class="g2" style="margin-bottom:18px;">
+      <div class="card">
+        <div class="card-title">T1 · Costos Fijos Mensuales</div>
+        <table><thead><tr><th>Concepto</th><th style="text-align:right">Referencia</th><th style="text-align:right">METARCO</th></tr></thead>
+        <tbody id="t1-tbody"></tbody>
+        <tfoot><tr class="total-row"><td colspan="2">TOTAL FIJOS T1</td><td style="text-align:right" id="t1-total">$0</td></tr></tfoot></table>
+      </div>
+      <div class="card">
+        <div class="card-title">T2 · Costos Fijos Mensuales</div>
+        <table><thead><tr><th>Concepto</th><th style="text-align:right">Referencia</th><th style="text-align:right">METARCO</th></tr></thead>
+        <tbody id="t2-tbody"></tbody>
+        <tfoot><tr class="total-row"><td colspan="2">TOTAL FIJOS T2</td><td style="text-align:right" id="t2-total">$0</td></tr></tfoot></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Variables por Servicio e Indicadores</div>
+      <div class="g2">
+        <div>
+          <table><thead><tr><th>Concepto</th><th style="text-align:right">Ref.</th><th style="text-align:right">METARCO</th></tr></thead>
+          <tbody id="var-tbody"></tbody></table>
+          <div style="margin-top:14px;">
+            <label>Horas disponibles / mes</label>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:5px;">
+              <input type="number" id="horas-disp" value="176" min="1" max="744" style="width:95px;" oninput="updateInd()">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--dim);">hrs/mes · 22 días × 8 hrs</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="sub-lbl" style="margin-top:0;">Indicadores calculados</div>
+          <div id="indicadores"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== VENCIMIENTOS ===== -->
+  <div id="sec-vencimientos" class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title">Control de Vencimientos</div>
+      <button class="btn btn-primary" onclick="openModalVenc()">+ AGREGAR</button>
+    </div>
+    <div class="g2" style="margin-bottom:14px;">
+      <div class="card"><div class="card-title">T1 · INTERNATIONAL NAVISTAR 8175</div><div id="venc-t1"></div></div>
+      <div class="card"><div class="card-title">T2 · PETERBILT 330</div><div id="venc-t2"></div></div>
+    </div>
+    <div class="card" style="padding:12px 18px;">
+      <div style="display:flex;gap:24px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:7px;"><div class="dot green"></div><span style="font-family:var(--mono);font-size:10px;color:var(--dim);">MÁS DE 30 DÍAS</span></div>
+        <div style="display:flex;align-items:center;gap:7px;"><div class="dot yellow"></div><span style="font-family:var(--mono);font-size:10px;color:var(--dim);">15 – 30 DÍAS</span></div>
+        <div style="display:flex;align-items:center;gap:7px;"><div class="dot red"></div><span style="font-family:var(--mono);font-size:10px;color:var(--dim);">MENOS DE 15 DÍAS</span></div>
+        <div style="display:flex;align-items:center;gap:7px;"><div class="dot gray"></div><span style="font-family:var(--mono);font-size:10px;color:var(--dim);">VENCIDO</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SERVICIOS ===== -->
+  <div id="sec-servicios" class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title">Bitácora de Servicios</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importarSvcs(event)">
+        <button class="btn btn-ghost" onclick="document.getElementById(&#39;imp-file&#39;).click()" title="Importar servicios exportados desde el Cotizador">📥 IMPORTAR COTIZADOR</button>
+        <button class="btn btn-primary" onclick="openModalSvc()">+ REGISTRAR SERVICIO</button>
+      </div>
+    </div>
+    <!-- Banner de importación -->
+    <div id="imp-banner" style="display:none;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.3);border-radius:6px;padding:12px 16px;margin-bottom:13px;font-family:var(--mono);font-size:11px;color:var(--blue-lt);"></div>
+    <div class="card" style="margin-bottom:13px;padding:12px 18px;">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--x);">FILTRAR:</span>
+        <select id="f-grua" onchange="renderSvcs()" style="width:105px;padding:6px 10px;"><option value="">Todas</option><option value="T1">T1</option><option value="T2">T2</option></select>
+        <select id="f-mes" onchange="renderSvcs()" style="width:175px;padding:6px 10px;"><option value="">Todos los meses</option></select>
+      </div>
+    </div>
+    <div class="card" style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Fecha</th><th>Grúa</th><th>Cliente</th><th>Tipo</th><th>Horas</th><th>Km</th><th>Ingreso</th><th>Costo Var.</th><th>Margen</th><th></th></tr></thead>
+        <tbody id="svc-tbody"></tbody>
+      </table>
+    </div>
+    <div class="g3" style="margin-top:13px;" id="svc-totales"></div>
+  </div>
+
+  <!-- ===== MANTENIMIENTO ===== -->
+  <div id="sec-mantenimiento" class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title">Historial de Mantenimiento</div>
+      <button class="btn btn-primary" onclick="openModalMant()">+ REGISTRAR</button>
+    </div>
+    <div class="g2" style="margin-bottom:14px;">
+      <div class="kpi"><div class="kpi-lbl">Costo Total Mantenimiento T1</div><div class="kpi-val amber" id="mant-t1-tot">$0</div><div class="kpi-sub" id="mant-t1-cnt">0 registros</div></div>
+      <div class="kpi"><div class="kpi-lbl">Costo Total Mantenimiento T2</div><div class="kpi-val amber" id="mant-t2-tot">$0</div><div class="kpi-sub" id="mant-t2-cnt">0 registros</div></div>
+    </div>
+    <div class="card" style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Fecha</th><th>Grúa</th><th>Tipo</th><th>Descripción</th><th>Taller</th><th>Costo</th><th></th></tr></thead>
+        <tbody id="mant-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== ALERTAS ===== -->
+  <div id="sec-alertas" class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title">Alertas</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="openModalAlerta()">+ ALERTA PREVENTIVA</button>
+        <button class="btn btn-primary" onclick="openModalPago()">+ PAGO RECURRENTE</button>
+      </div>
+    </div>
+
+    <!-- MANTENIMIENTO PREVENTIVO -->
+    <div class="sub-lbl">Mantenimiento Preventivo por Horas / Meses</div>
+    <div class="g2" style="margin-bottom:18px;" id="alertas-grid"></div>
+
+    <!-- PAGOS RECURRENTES -->
+    <div class="sub-lbl">Pagos Recurrentes</div>
+    <div class="card">
+      <table>
+        <thead><tr><th></th><th>Concepto</th><th>Grúa</th><th>Monto</th><th>Frecuencia</th><th>Próximo Pago</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="pagos-tbody"></tbody>
+      </table>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--x);">COMPROMISO MENSUAL TOTAL</div>
+        <div style="font-family:var(--mono);font-size:18px;color:var(--amber);" id="pagos-total-mes">$0 / mes</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- ===== MODALES ===== -->
+
+<!-- Vencimiento -->
+<div class="overlay" id="ov-venc">
+  <div class="modal">
+    <div class="modal-title" id="venc-mt">🔔 Agregar Vencimiento</div>
+    <div class="fg"><label>Grúa</label><select id="vn-grua"><option value="T1">T1 — Navistar 8175</option><option value="T2">T2 — Peterbilt 330</option></select></div>
+    <div class="fg"><label>Documento / Permiso</label><input type="text" id="vn-doc" placeholder="Ej: Póliza de seguro"></div>
+    <div class="fg"><label>Fecha de vencimiento</label><input type="date" id="vn-fecha"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeOv(&#39;ov-venc&#39;)">CANCELAR</button>
+      <button class="btn btn-primary" onclick="saveVenc()">GUARDAR</button>
+    </div>
   </div>
 </div>
 
-<!-- MODAL -->
-<div class="modal-overlay hidden" id="modalOverlay">
-  <div class="modal" id="modalContent"></div>
+<!-- Servicio -->
+<div class="overlay" id="ov-svc">
+  <div class="modal">
+    <div class="modal-title" id="svc-modal-title">📋 Registrar Servicio</div>
+    <div class="g2" style="gap:12px;">
+      <div class="fg"><label>Grúa</label><select id="sv-grua" onchange="calcSvcC()"><option value="T1">T1 — Navistar</option><option value="T2">T2 — Peterbilt</option></select></div>
+      <div class="fg"><label>Fecha</label><input type="date" id="sv-fecha"></div>
+    </div>
+    <div class="fg"><label>Cliente</label><input type="text" id="sv-cliente" placeholder="Nombre del cliente"></div>
+    <div class="g2" style="gap:12px;">
+      <div class="fg"><label>Tipo de servicio</label><select id="sv-tipo"><option>Maniobra Ligera</option><option>Maniobra Pesada</option><option>Arrastre</option></select></div>
+      <div class="fg"><label>Accesorio</label><select id="sv-acc"><option>Bola rápida</option><option>Gancho doble (T2)</option><option>Con aguilón</option><option>Sin accesorio</option></select></div>
+    </div>
+    <div class="g2" style="gap:12px;">
+      <div class="fg"><label>Horas trabajadas</label><input type="number" id="sv-horas" min="0.5" step="0.5" value="4" oninput="calcSvcC()"></div>
+      <div class="fg"><label>Km traslado</label><input type="number" id="sv-km" min="0" value="0" oninput="calcSvcC()"></div>
+    </div>
+    <div class="g2" style="gap:12px;">
+      <div class="fg"><label>Ingreso cobrado ($)</label><input type="number" id="sv-ingreso" min="0" step="100" value="0"></div>
+      <div class="fg"><label>Operador</label><input type="text" id="sv-oper" placeholder="Nombre del operador"></div>
+    </div>
+    <div class="fg"><label>Notas</label><textarea id="sv-notas" rows="2" placeholder="Observaciones..."></textarea></div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:11px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--x);">COSTO VARIABLE ESTIMADO</div>
+      <div style="font-family:var(--mono);font-size:19px;color:var(--amber);" id="sv-cest">$0</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeOv(&#39;ov-svc&#39;)">CANCELAR</button><button class="btn btn-primary" onclick="saveSvc()">GUARDAR</button></div>
+  </div>
 </div>
 
-<!-- TOAST -->
-<div class="toast hidden" id="toast"></div>
+<!-- Mantenimiento -->
+<div class="overlay" id="ov-mant">
+  <div class="modal">
+    <div class="modal-title">🔧 Registrar Mantenimiento / Falla</div>
+    <div class="g2" style="gap:12px;">
+      <div class="fg"><label>Grúa</label><select id="mt-grua"><option value="T1">T1 — Navistar</option><option value="T2">T2 — Peterbilt</option></select></div>
+      <div class="fg"><label>Fecha</label><input type="date" id="mt-fecha"></div>
+    </div>
+    <div class="g2" style="gap:12px;">
+      <div class="fg"><label>Tipo</label><select id="mt-tipo"><option>Preventivo</option><option>Correctivo</option><option>Inspección</option></select></div>
+      <div class="fg"><label>Costo ($)</label><input type="number" id="mt-costo" min="0" step="100" value="0"></div>
+    </div>
+    <div class="fg"><label>Descripción</label><input type="text" id="mt-desc" placeholder="Ej: Cambio de aceite motor + filtros"></div>
+    <div class="fg"><label>Taller / Proveedor</label><input type="text" id="mt-taller" placeholder="Nombre del taller"></div>
+    <div class="fg"><label>Notas</label><textarea id="mt-notas" rows="2"></textarea></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeOv(&#39;ov-mant&#39;)">CANCELAR</button><button class="btn btn-primary" onclick="saveMant()">GUARDAR</button></div>
+  </div>
+</div>
+
+<!-- Alerta Preventiva -->
+<div class="overlay" id="ov-alerta">
+  <div class="modal">
+    <div class="modal-title" id="alerta-mt">⚡ Alerta de Mantenimiento</div>
+    <div class="g2" style="gap:12px;">
+      <div class="fg"><label>Grúa</label><select id="al-grua"><option value="T1">T1</option><option value="T2">T2</option></select></div>
+      <div class="fg"><label>Tipo de intervalo</label>
+        <select id="al-tipo" onchange="toggleAlertaTipo()">
+          <option value="horas">Por Horas trabajadas</option>
+          <option value="meses">Por Meses calendario</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>Concepto</label><input type="text" id="al-concepto" placeholder="Ej: Cambio de aceite motor"></div>
+    <div class="g2" style="gap:12px;" id="al-interval-wrap">
+      <div class="fg"><label id="al-cada-lbl">Cada (horas)</label><input type="number" id="al-cada" min="1" value="250"></div>
+      <div class="fg"><label>Último mantenimiento</label><input type="date" id="al-ultima"></div>
+    </div>
+    <div class="fg"><label>Notas</label><input type="text" id="al-notas" placeholder="Ej: Motor T444E 7.3L"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeOv(&#39;ov-alerta&#39;)">CANCELAR</button><button class="btn btn-primary" onclick="saveAlerta()">GUARDAR</button></div>
+  </div>
+</div>
+
+<!-- Pago Recurrente -->
+<div class="overlay" id="ov-pago">
+  <div class="modal">
+    <div class="modal-title" id="pago-mt">💳 Pago Recurrente</div>
+    <div class="fg"><label>Concepto</label><input type="text" id="pg-concepto" placeholder="Ej: Prima seguro T1"></div>
+    <div class="g2" style="gap:12px;">
+      <div class="fg"><label>Grúa / Área</label>
+        <select id="pg-grua"><option value="T1">T1</option><option value="T2">T2</option><option value="General">General</option></select>
+      </div>
+      <div class="fg"><label>Frecuencia</label>
+        <select id="pg-freq"><option value="mensual">Mensual</option><option value="bimestral">Bimestral</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select>
+      </div>
+    </div>
+    <div class="g2" style="gap:12px;">
+      <div class="fg"><label>Monto ($)</label><input type="number" id="pg-monto" min="0" step="100" value="0"></div>
+      <div class="fg"><label>Próximo pago</label><input type="date" id="pg-fecha"></div>
+    </div>
+    <div class="fg"><label>Notas</label><input type="text" id="pg-notas" placeholder="Observaciones..."></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeOv(&#39;ov-pago&#39;)">CANCELAR</button><button class="btn btn-primary" onclick="savePago()">GUARDAR</button></div>
+  </div>
+</div>
 
 <script>
-/* ============================================================
-   METARCO · CONTROL DE GRÚAS · v2.0
-   Admin: a.medina@metarco.com.mx
-   OneDrive sync via Microsoft Graph API
-   Roles: Admin (full) / Operador (sin Costos ni Pagos)
-============================================================ */
+// ==================== DEFAULTS & STATE ====================
 
-// --- CONFIG ---
-const CFG = {
+const HOY = new Date();
+const HOY_STR = HOY.toISOString().split('T')[0];
+const YR_STR  = (() => { const d=new Date(HOY); d.setFullYear(d.getFullYear()+1); return d.toISOString().split('T')[0]; })();
+const MES_KEY = () => `${HOY.getFullYear()}-${String(HOY.getMonth()+1).padStart(2,'0')}`;
+
+// Next month 1st for recurring payments
+const NEXT_MO = (() => { const d=new Date(HOY); d.setMonth(d.getMonth()+1,1); return d.toISOString().split('T')[0]; })();
+
+const DEF_COSTOS = {
+  horasDisp: 176,
+  t1: [
+    {concepto:'Costo operador (todo incluido)', ref:18000, val:18000},
+    {concepto:'Seguro del equipo',             ref:3500,  val:3500 },
+    {concepto:'Tenencia (prorrateada)',     ref:300,   val:300  },
+    {concepto:'Verificación vehicular',    ref:200,   val:200  },
+    {concepto:'Permiso SCT (prorrateado)', ref:500,   val:500  },
+    {concepto:'Certificación pluma',       ref:800,   val:800  },
+  ],
+  t2: [
+    {concepto:'Costo operador (todo incluido)', ref:25500, val:25500},
+    {concepto:'Seguro del equipo',             ref:5000,  val:5000 },
+    {concepto:'Tenencia (prorrateada)',     ref:400,   val:400  },
+    {concepto:'Verificación vehicular',    ref:200,   val:200  },
+    {concepto:'Permiso SCT (prorrateado)', ref:500,   val:500  },
+    {concepto:'Certificación pluma',       ref:800,   val:800  },
+  ],
+  vars: [
+    {concepto:'Diesel T1 en operación ($/hr)', ref:210, val:210, u:'/hr'},
+    {concepto:'Diesel T2 en operación ($/hr)', ref:310, val:310, u:'/hr'},
+    {concepto:'Diesel traslado ($/km)',         ref:7.5, val:7.5, u:'/km'},
+    {concepto:'Lubricantes ($/hr)',             ref:20,  val:20,  u:'/hr'},
+    {concepto:'Desgaste llantas ($/km)',        ref:3,   val:3,   u:'/km'},
+  ]
+};
+
+const DEF_VENC = [
+  {id:1,grua:'T1',doc:'Verificación vehicular',fecha:YR_STR},
+  {id:2,grua:'T1',doc:'Póliza de seguro',fecha:YR_STR},
+  {id:3,grua:'T1',doc:'Permiso SCT',fecha:YR_STR},
+  {id:4,grua:'T1',doc:'Certificación pluma DIAL-1054/23',fecha:YR_STR},
+  {id:5,grua:'T2',doc:'Verificación vehicular',fecha:YR_STR},
+  {id:6,grua:'T2',doc:'Póliza de seguro',fecha:YR_STR},
+  {id:7,grua:'T2',doc:'Permiso SCT',fecha:YR_STR},
+  {id:8,grua:'T2',doc:'Certificación de pluma',fecha:YR_STR},
+];
+
+const DEF_ALERTAS = [
+  {id:1, grua:'T1', concepto:'Cambio de aceite motor + filtros', tipo:'horas', cada:250,  ultimaFecha:HOY_STR, notas:'Motor T444E 7.3L'},
+  {id:2, grua:'T1', concepto:'Cambio aceite hidráulico',          tipo:'horas', cada:1000, ultimaFecha:HOY_STR, notas:''},
+  {id:3, grua:'T1', concepto:'Revisión cable de acero winch',     tipo:'meses', cada:6,    ultimaFecha:HOY_STR, notas:''},
+  {id:4, grua:'T1', concepto:'Revisión pluma y estructura',       tipo:'meses', cada:12,   ultimaFecha:HOY_STR, notas:'Cert. DIAL-1054/23'},
+  {id:5, grua:'T1', concepto:'Revisión frenos y sistema neumático',tipo:'meses',cada:6,    ultimaFecha:HOY_STR, notas:''},
+  {id:6, grua:'T2', concepto:'Cambio de aceite motor + filtros', tipo:'horas', cada:250,  ultimaFecha:HOY_STR, notas:'Cummins ISC 8.3L'},
+  {id:7, grua:'T2', concepto:'Cambio aceite hidráulico',          tipo:'horas', cada:1000, ultimaFecha:HOY_STR, notas:''},
+  {id:8, grua:'T2', concepto:'Revisión cable de acero winch',     tipo:'meses', cada:6,    ultimaFecha:HOY_STR, notas:''},
+  {id:9, grua:'T2', concepto:'Revisión pluma y estructura',       tipo:'meses', cada:12,   ultimaFecha:HOY_STR, notas:''},
+  {id:10,grua:'T2', concepto:'Revisión frenos y sistema neumático',tipo:'meses',cada:6,    ultimaFecha:HOY_STR, notas:''},
+];
+
+const DEF_PAGOS = [
+  {id:1, concepto:'Prima seguro T1',   grua:'T1',      monto:3500, freq:'mensual',    fecha:NEXT_MO, notas:''},
+  {id:2, concepto:'Prima seguro T2',   grua:'T2',      monto:5000, freq:'mensual',    fecha:NEXT_MO, notas:''},
+  {id:3, concepto:'Costo operador T1 (mensual)', grua:'T1', monto:18000, freq:'mensual', fecha:NEXT_MO, notas:'Costo operador completo (salario + IMSS + INFONAVIT + prestaciones)'},
+  {id:4, concepto:'Costo operador T2 (mensual)', grua:'T2', monto:25500, freq:'mensual', fecha:NEXT_MO, notas:'Costo operador completo + $1,500 INFONAVIT extra cubierto por METARCO'},
+  {id:5, concepto:'Permiso SCT T1',    grua:'T1',      monto:500,  freq:'anual',      fecha:YR_STR,  notas:'Prorrateado en fijos'},
+  {id:6, concepto:'Permiso SCT T2',    grua:'T2',      monto:500,  freq:'anual',      fecha:YR_STR,  notas:'Prorrateado en fijos'},
+];
+
+const LS = {c:'mx_cost_v2',v:'mx_venc_v2',s:'mx_svcs_v2',m:'mx_mant_v2',a:'mx_alert_v2',p:'mx_pagos_v2'};
+
+function lsLoad(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch{return d;} }
+function lsSave(k,d){ localStorage.setItem(k,JSON.stringify(d)); }
+
+let costos  = lsLoad(LS.c, DEF_COSTOS);
+let venc    = lsLoad(LS.v, DEF_VENC);
+let svcs    = lsLoad(LS.s, []);
+let mant    = lsLoad(LS.m, []);
+let alertas = lsLoad(LS.a, DEF_ALERTAS);
+let pagos   = lsLoad(LS.p, DEF_PAGOS);
+
+// ==================== UTILS ====================
+
+const fmt  = n => '$'+Math.round(n||0).toLocaleString('es-MX');
+const fmtD = (n,d=2) => '$'+Number(n||0).toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+
+function diasHasta(f){ return Math.ceil((new Date(f+'T12:00:00')-HOY)/(864e5)); }
+function semColor(d){ return d<0?'gray':d<=15?'red':d<=30?'yellow':'green'; }
+function semLbl(d){ if(d<0)return`VENCIÓ hace ${Math.abs(d)} días`; if(d===0)return'VENCE HOY'; return`${d} días`; }
+
+function totT1(){ return costos.t1.reduce((s,r)=>s+(+r.val||0),0); }
+function totT2(){ return costos.t2.reduce((s,r)=>s+(+r.val||0),0); }
+
+function costoVarSvc(g,h,k){
+  const v=costos.vars;
+  return ((+v[g==='T1'?0:1].val||0)+(+v[3].val||0))*h + ((+v[2].val||0)+(+v[4].val||0))*k;
+}
+
+function mesSvc(s){ const d=new Date(s.fecha+'T12:00:00'); return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+
+function horasSvcsDesde(grua, desdeStr){
+  if(!desdeStr) return 0;
+  return svcs.filter(s=>s.grua===grua && s.fecha>=desdeStr).reduce((t,s)=>t+(+s.horas||0),0);
+}
+
+function mesesDesde(fechaStr){
+  if(!fechaStr) return 0;
+  const f=new Date(fechaStr+'T12:00:00');
+  return (HOY.getFullYear()-f.getFullYear())*12+(HOY.getMonth()-f.getMonth());
+}
+
+function freqMeses(f){ return {mensual:1,bimestral:2,trimestral:3,semestral:6,anual:12}[f]||1; }
+function montoMensual(monto,freq){ return monto/freqMeses(freq); }
+
+// ==================== FILE SYSTEM API ====================
+
+let dirHandle=null;
+let idb=null;
+
+async function initIDB(){
+  return new Promise((res)=>{
+    const r=indexedDB.open('MetarcoDashIDB',1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore('handles');
+    r.onsuccess=e=>{ idb=e.target.result; res(); };
+    r.onerror=()=>res();
+  });
+}
+
+async function saveHandle(h){
+  if(!idb)return;
+  const tx=idb.transaction('handles','readwrite');
+  tx.objectStore('handles').put(h,'dir');
+}
+
+async function loadHandle(){
+  if(!idb)return null;
+  return new Promise(res=>{
+    const tx=idb.transaction('handles','readonly');
+    const r=tx.objectStore('handles').get('dir');
+    r.onsuccess=e=>res(e.target.result||null);
+    r.onerror=()=>res(null);
+  });
+}
+
+async function selectFolder(){
+  try{
+    dirHandle=await window.showDirectoryPicker({mode:'readwrite'});
+    await saveHandle(dirHandle);
+    updateFolderUI();
+    await saveToFolder();
+    toast('Carpeta conectada ✓ Los datos se guardarán en METARCO_Dashboard_Datos.json');
+  }catch(e){ if(e.name!=='AbortError') toast('Error al seleccionar carpeta','error'); }
+}
+
+async function reconnectFolder(){
+  const h=await loadHandle();
+  if(!h)return;
+  try{
+    const perm=await h.queryPermission({mode:'readwrite'});
+    if(perm==='granted'){ dirHandle=h; updateFolderUI(); await loadFromFolder(); }
+    else{
+      const req=await h.requestPermission({mode:'readwrite'});
+      if(req==='granted'){ dirHandle=h; updateFolderUI(); await loadFromFolder(); }
+    }
+  }catch(e){ console.log('Reconexión fallida:',e); }
+}
+
+async function saveToFolder(manual=false){
+  if(!dirHandle)return;
+  try{
+    const data={costos,venc,svcs,mant,alertas,pagos,ts:new Date().toISOString()};
+    const fh=await dirHandle.getFileHandle('METARCO_Dashboard_Datos.json',{create:true});
+    const w=await fh.createWritable();
+    await w.write(JSON.stringify(data,null,2));
+    await w.close();
+    if(manual) toast('Archivo guardado en carpeta ✓');
+    updateFolderUI(true);
+  }catch(e){ console.log('Error guardando:',e); toast('Error al guardar en carpeta','error'); }
+}
+
+async function loadFromFolder(){
+  if(!dirHandle)return;
+  try{
+    const fh=await dirHandle.getFileHandle('METARCO_Dashboard_Datos.json');
+    const f=await fh.getFile();
+    const d=JSON.parse(await f.text());
+    if(d.costos){ costos=d.costos; lsSave(LS.c,costos); }
+    if(d.venc)  { venc=d.venc;    lsSave(LS.v,venc);   }
+    if(d.svcs)  { svcs=d.svcs;    lsSave(LS.s,svcs);   }
+    if(d.mant)  { mant=d.mant;    lsSave(LS.m,mant);   }
+    if(d.alertas){ alertas=d.alertas; lsSave(LS.a,alertas); }
+    if(d.pagos) { pagos=d.pagos;  lsSave(LS.p,pagos);  }
+    renderResumen();
+    toast('Datos cargados desde archivo ✓');
+  }catch(e){ console.log('Sin archivo previo, usando localStorage'); }
+}
+
+function updateFolderUI(saved=false){
+  const bar=document.getElementById('folderBar');
+  const dot=document.getElementById('folderDot');
+  const msg=document.getElementById('folderMsg');
+  const btn=document.getElementById('btnFolder');
+  const btnSave=document.getElementById('btnSaveFile');
+  if(dirHandle){
+    bar.className='folder-bar connected';
+    dot.className='folder-dot on';
+    msg.style.color='var(--green)';
+    msg.textContent='✓ Carpeta conectada · METARCO_Dashboard_Datos.json · Auto-guardado activo';
+    btn.textContent='CAMBIAR CARPETA';
+    btnSave.style.display='inline-block';
+  } else {
+    bar.className='folder-bar disconnected';
+    dot.className='folder-dot off';
+    msg.style.color='var(--amber)';
+    msg.textContent='📁 Sin carpeta — datos guardados solo en este navegador (localStorage)';
+    btn.textContent='SELECCIONAR CARPETA';
+    btnSave.style.display='none';
+  }
+}
+
+async function autoSave(){
+  // Save to localStorage always, then folder if connected
+  lsSave(LS.c,costos); lsSave(LS.v,venc); lsSave(LS.s,svcs);
+  lsSave(LS.m,mant); lsSave(LS.a,alertas); lsSave(LS.p,pagos);
+  if(dirHandle) await saveToFolder();
+}
+
+// ==================== HEADER ====================
+
+document.getElementById('hdrDate').textContent =
+  HOY.toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'}).toUpperCase();
+
+// ==================== TABS ====================
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.sec').forEach(x=>x.classList.remove('active'));
+    this.classList.add('active');
+    const el=document.getElementById('sec-'+this.dataset.tab);
+    if(el) el.classList.add('active');
+    ({resumen:renderResumen,costos:renderCostos,vencimientos:renderVenc,
+      servicios:renderSvcs,mantenimiento:renderMant,alertas:renderAlertas})[this.dataset.tab]?.();
+  });
+});
+
+// ==================== RESUMEN ====================
+
+function renderResumen(){
+  const f1=totT1(),f2=totT2();
+  document.getElementById('r-t1-fijo').textContent=fmt(f1);
+  document.getElementById('r-t2-fijo').textContent=fmt(f2);
+
+  const cv1=(+costos.vars[0].val||0)+(+costos.vars[3].val||0);
+  const cv2=(+costos.vars[1].val||0)+(+costos.vars[3].val||0);
+  const eq1=1000>cv1?(f1/(1000-cv1)).toFixed(1)+' hrs':'∞';
+  const eq2=1250>cv2?(f2/(1250-cv2)).toFixed(1)+' hrs':'∞';
+  document.getElementById('r-t1-eq').textContent=eq1;
+  document.getElementById('r-t2-eq').textContent=eq2;
+
+  const mk=MES_KEY();
+  const sm=svcs.filter(s=>mesSvc(s)===mk);
+  const ingr=sm.reduce((s,r)=>s+(+r.ingreso||0),0);
+  const cvar=sm.reduce((s,r)=>s+(+r.costoVar||0),0);
+  const marg=ingr-cvar;
+  document.getElementById('r-svcs').textContent=sm.length;
+  document.getElementById('r-ingr').textContent=fmt(ingr);
+  document.getElementById('r-cvar').textContent=fmt(cvar);
+  const mel=document.getElementById('r-margen');
+  mel.textContent=fmt(marg);
+  mel.style.color=marg>=0?'var(--green)':'var(--red)';
+
+  // Vencimientos
+  const urgV=[...venc].map(v=>({...v,dias:diasHasta(v.fecha)})).sort((a,b)=>a.dias-b.dias).slice(0,6);
+  const bv=document.getElementById('r-venc-box');
+  bv.innerHTML=urgV.length?urgV.map(v=>{
+    const c=semColor(v.dias);
+    return`<div class="sem-row"><div class="dot ${c}"></div><span class="badge badge-blue" style="margin-right:5px;">${v.grua}</span><span class="sem-lbl">${v.doc}</span><span class="sem-date">${v.fecha}</span><span class="sem-days ${c}">${semLbl(v.dias)}</span></div>`;
+  }).join(''):'<p style="font-family:var(--mono);font-size:11px;color:var(--x);padding:12px;">Sin vencimientos registrados</p>';
+
+  // Pagos
+  const urgP=[...pagos].map(p=>({...p,dias:diasHasta(p.fecha)})).sort((a,b)=>a.dias-b.dias).slice(0,5);
+  const bp=document.getElementById('r-pagos-box');
+  bp.innerHTML=urgP.length?urgP.map(p=>{
+    const c=semColor(p.dias);
+    return`<div class="sem-row"><div class="dot ${c}"></div><span class="badge badge-amber" style="margin-right:5px;">${p.grua}</span><span class="sem-lbl">${p.concepto}</span><span style="font-family:var(--mono);font-size:11px;color:var(--amber);margin-right:8px;">${fmt(p.monto)}</span><span class="sem-date">${p.fecha}</span><span class="sem-days ${c}">${semLbl(p.dias)}</span></div>`;
+  }).join(''):'<p style="font-family:var(--mono);font-size:11px;color:var(--x);padding:12px;">Sin pagos registrados</p>';
+}
+
+// ==================== COSTOS ====================
+
+function renderCostos(){
+  renderFT('t1',costos.t1,'t1-tbody','t1-total');
+  renderFT('t2',costos.t2,'t2-tbody','t2-total');
+  renderVT();
+  updateInd();
+  const hEl=document.getElementById('horas-disp');
+  if(hEl) hEl.value=costos.horasDisp||176;
+}
+
+function renderFT(unit,data,bid,tid){
+  document.getElementById(bid).innerHTML=data.map((r,i)=>`
+    <tr>
+      <td style="font-size:13px;">${r.concepto}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;color:var(--x);">${fmt(r.ref)}</td>
+      <td style="text-align:right;"><input class="cinp" type="number" value="${r.val}" min="0" step="100" oninput="updF('${unit}',${i},this.value)"></td>
+    </tr>`).join('');
+  updFT(unit,tid);
+}
+
+function updF(u,i,v){ costos[u][i].val=+v||0; updFT(u,u==='t1'?'t1-total':'t2-total'); updateInd(); }
+function updFT(u,id){ document.getElementById(id).textContent=fmt(u==='t1'?totT1():totT2()); }
+
+function renderVT(){
+  document.getElementById('var-tbody').innerHTML=costos.vars.map((r,i)=>`
+    <tr>
+      <td style="font-size:13px;">${r.concepto}</td>
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;color:var(--x);">${fmtD(r.ref)}${r.u}</td>
+      <td style="text-align:right;"><input class="cinp" type="number" value="${r.val}" min="0" step="0.5" oninput="updV(${i},this.value)"></td>
+    </tr>`).join('');
+}
+
+function updV(i,v){ costos.vars[i].val=+v||0; updateInd(); }
+
+function updateInd(){
+  const h=+(document.getElementById('horas-disp')?.value||costos.horasDisp||176);
+  const f1=totT1(),f2=totT2();
+  const cv1=(+costos.vars[0].val||0)+(+costos.vars[3].val||0);
+  const cv2=(+costos.vars[1].val||0)+(+costos.vars[3].val||0);
+  const chF1=f1/h,chF2=f2/h,chT1=chF1+cv1,chT2=chF2+cv2;
+  const eq=( tf,cv,f)=>tf>cv?(f/(tf-cv)).toFixed(1)+' hrs':'∞';
+  const mg=(tf,ct)=>tf-ct;
+  const rows=[
+    ['Costo fijo/hr T1 ('+h+' hrs)',fmtD(chF1)+'/hr',''],
+    ['Costo fijo/hr T2 ('+h+' hrs)',fmtD(chF2)+'/hr',''],
+    ['Costo variable/hr T1',fmtD(cv1)+'/hr',''],
+    ['Costo variable/hr T2',fmtD(cv2)+'/hr',''],
+    ['Costo TOTAL/hr T1',fmtD(chT1)+'/hr',chT1<=1000?'green':'red'],
+    ['Costo TOTAL/hr T2',fmtD(chT2)+'/hr',chT2<=1250?'green':'red'],
+    ['-','-',''],
+    ['Equilibrio T1 Ligero @$1,000/hr',eq(1000,cv1,f1),mg(1000,chT1)>=0?'green':'red'],
+    ['Equilibrio T1 Pesado @$1,200/hr',eq(1200,cv1,f1),mg(1200,chT1)>=0?'green':'red'],
+    ['Equilibrio T2 Ligero @$1,250/hr',eq(1250,cv2,f2),mg(1250,chT2)>=0?'green':'red'],
+    ['Equilibrio T2 Pesado @$1,400/hr',eq(1400,cv2,f2),mg(1400,chT2)>=0?'green':'red'],
+    ['Margen/hr T1 Ligero',fmtD(mg(1000,chT1))+'/hr',mg(1000,chT1)>=0?'green':'red'],
+    ['Margen/hr T2 Ligero',fmtD(mg(1250,chT2))+'/hr',mg(1250,chT2)>=0?'green':'red'],
+  ];
+  document.getElementById('indicadores').innerHTML=rows.map(([l,v,c])=>{
+    if(l==='-') return`<hr style="border:none;border-top:1px solid var(--border);margin:5px 0;">`;
+    const col=c==='green'?'var(--green)':c==='red'?'var(--red)':'var(--amber)';
+    return`<div class="ind-row"><span class="ind-lbl">${l}</span><span class="ind-val" style="color:${col};">${v}</span></div>`;
+  }).join('');
+}
+
+async function saveCostos(){
+  costos.horasDisp=+(document.getElementById('horas-disp')?.value)||176;
+  await autoSave();
+  renderResumen();
+  toast('Costos guardados ✓');
+}
+
+// ==================== VENCIMIENTOS ====================
+
+function renderVenc(){
+  ['T1','T2'].forEach(g=>{
+    const data=[...venc].filter(v=>v.grua===g).sort((a,b)=>diasHasta(a.fecha)-diasHasta(b.fecha));
+    const el=document.getElementById('venc-'+g.toLowerCase());
+    el.innerHTML=data.length?data.map(v=>{
+      const d=diasHasta(v.fecha),c=semColor(d);
+      return`<div class="sem-row"><div class="dot ${c}"></div><span class="sem-lbl">${v.doc}</span><span class="sem-date">${v.fecha}</span><span class="sem-days ${c}">${semLbl(d)}</span><button class="btn-sm" onclick="editVenc(${v.id})">✏️</button><button class="btn-sm danger" onclick="delVenc(${v.id})">✕</button></div>`;
+    }).join(''):'<p style="font-family:var(--mono);font-size:11px;color:var(--x);padding:12px;">Sin vencimientos</p>';
+  });
+}
+
+let editVId=null;
+function openModalVenc(){ editVId=null; document.getElementById('venc-mt').textContent='🔔 Agregar Vencimiento'; document.getElementById('vn-grua').value='T1'; document.getElementById('vn-doc').value=''; document.getElementById('vn-fecha').value=YR_STR; openOv('ov-venc'); }
+function editVenc(id){ const v=venc.find(x=>x.id===id); if(!v)return; editVId=id; document.getElementById('venc-mt').textContent='✏️ Editar Vencimiento'; document.getElementById('vn-grua').value=v.grua; document.getElementById('vn-doc').value=v.doc; document.getElementById('vn-fecha').value=v.fecha; openOv('ov-venc'); }
+
+async function saveVenc(){
+  const g=document.getElementById('vn-grua').value, doc=document.getElementById('vn-doc').value.trim(), f=document.getElementById('vn-fecha').value;
+  if(!doc||!f){toast('Completa todos los campos','error');return;}
+  if(editVId){ const i=venc.findIndex(v=>v.id===editVId); if(i>=0) venc[i]={...venc[i],grua:g,doc,fecha:f}; }
+  else venc.push({id:Math.max(0,...venc.map(v=>v.id))+1,grua:g,doc,fecha:f});
+  await autoSave(); closeOv('ov-venc'); renderVenc(); toast('Vencimiento guardado ✓');
+}
+
+async function delVenc(id){ if(!confirm('¿Eliminar?'))return; venc=venc.filter(v=>v.id!==id); await autoSave(); renderVenc(); }
+
+// ==================== SERVICIOS ====================
+
+function renderSvcs(){
+  const fg=document.getElementById('f-grua')?.value||'';
+  const fm=document.getElementById('f-mes')?.value||'';
+  const meses=[...new Set(svcs.map(s=>mesSvc(s)))].sort().reverse();
+  const mel=document.getElementById('f-mes');
+  if(mel){ const cur=mel.value; while(mel.options.length>1)mel.remove(1); meses.forEach(m=>{ const o=document.createElement('option'); o.value=m; const d=new Date(m+'-01T12:00:00'); o.textContent=d.toLocaleDateString('es-MX',{month:'long',year:'numeric'}); mel.appendChild(o); }); mel.value=cur; }
+  let data=[...svcs].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  if(fg) data=data.filter(s=>s.grua===fg);
+  if(fm) data=data.filter(s=>mesSvc(s)===fm);
+  const body=document.getElementById('svc-tbody');
+  if(!data.length){ body.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--x);padding:28px;font-family:var(--mono);font-size:11px;">SIN SERVICIOS REGISTRADOS</td></tr>'; document.getElementById('svc-totales').innerHTML=''; return; }
+  body.innerHTML=data.map(s=>{ const mg=(+s.ingreso||0)-(+s.costoVar||0),mc=mg>=0?'var(--green)':'var(--red)'; return`<tr><td class="mc">${s.fecha}</td><td><span class="badge badge-blue">${s.grua}</span></td><td style="font-weight:600;">${s.cliente||'—'}</td><td style="font-size:11px;color:var(--dim);">${s.tipo}</td><td class="mc">${s.horas}h</td><td class="mc">${s.km||0}km</td><td class="mc" style="color:var(--green);">${fmt(s.ingreso||0)}</td><td class="mc" style="color:var(--amber);">${fmt(s.costoVar||0)}</td><td class="mc" style="color:${mc};">${fmt(mg)}</td><td style="display:flex;gap:4px;padding:9px 11px;"><button class="btn-sm" onclick="editSvc('${s.id}')" title="Editar">✏️</button><button class="btn-sm danger" onclick="delSvc('${s.id}')">✕</button></td></tr>`; }).join('');
+  const ti=data.reduce((s,r)=>s+(+r.ingreso||0),0),tc=data.reduce((s,r)=>s+(+r.costoVar||0),0),tm=ti-tc;
+  document.getElementById('svc-totales').innerHTML=`<div class="kpi"><div class="kpi-lbl">Ingresos filtrados</div><div class="kpi-val green">${fmt(ti)}</div></div><div class="kpi"><div class="kpi-lbl">Costos variables</div><div class="kpi-val amber">${fmt(tc)}</div></div><div class="kpi"><div class="kpi-lbl">Margen bruto</div><div class="kpi-val" style="color:${tm>=0?'var(--green)':'var(--red)'};">${fmt(tm)}</div></div>`;
+}
+
+let editSvcId = null;
+
+function openModalSvc(){
+  editSvcId = null;
+  document.getElementById('svc-modal-title').textContent = '📋 Registrar Servicio';
+  document.getElementById('sv-fecha').value = HOY_STR;
+  ['sv-grua','sv-tipo','sv-acc'].forEach(id=>{ const el=document.getElementById(id); if(el) el.selectedIndex=0; });
+  ['sv-cliente','sv-oper','sv-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('sv-horas').value = '4';
+  document.getElementById('sv-km').value    = '0';
+  document.getElementById('sv-ingreso').value = '0';
+  calcSvcC();
+  openOv('ov-svc');
+}
+
+function editSvc(id){
+  const s = svcs.find(x => x.id === id);
+  if(!s) return;
+  editSvcId = id;
+  document.getElementById('svc-modal-title').textContent = '✏️ Editar Servicio';
+  document.getElementById('sv-grua').value    = s.grua    || 'T1';
+  document.getElementById('sv-fecha').value   = s.fecha   || HOY_STR;
+  document.getElementById('sv-cliente').value = s.cliente || '';
+  document.getElementById('sv-tipo').value    = s.tipo    || 'Maniobra Ligera';
+  document.getElementById('sv-acc').value     = s.acces   || 'Bola rápida';
+  document.getElementById('sv-horas').value   = s.horas   || 4;
+  document.getElementById('sv-km').value      = s.km      || 0;
+  document.getElementById('sv-ingreso').value = s.ingreso || 0;
+  document.getElementById('sv-oper').value    = s.oper    || '';
+  document.getElementById('sv-notas').value   = s.notas   || '';
+  calcSvcC();
+  openOv('ov-svc');
+}
+
+function calcSvcC(){ const g=document.getElementById('sv-grua').value,h=+document.getElementById('sv-horas').value||0,k=+document.getElementById('sv-km').value||0; document.getElementById('sv-cest').textContent=fmt(costoVarSvc(g,h,k)); }
+
+async function saveSvc(){
+  const grua    = document.getElementById('sv-grua').value;
+  const fecha   = document.getElementById('sv-fecha').value;
+  const cliente = document.getElementById('sv-cliente').value.trim();
+  if(!fecha || !cliente){ toast('Completa fecha y cliente','error'); return; }
+  const horas    = +document.getElementById('sv-horas').value   || 0;
+  const km       = +document.getElementById('sv-km').value      || 0;
+  const ingreso  = +document.getElementById('sv-ingreso').value || 0;
+  const tipo     = document.getElementById('sv-tipo').value;
+  const acces    = document.getElementById('sv-acc').value;
+  const oper     = document.getElementById('sv-oper').value.trim();
+  const notas    = document.getElementById('sv-notas').value.trim();
+  const costoVar = costoVarSvc(grua, horas, km);
+
+  if(editSvcId){
+    const idx = svcs.findIndex(s => s.id === editSvcId);
+    if(idx >= 0) svcs[idx] = { ...svcs[idx], grua, fecha, cliente, tipo, acces, horas, km, ingreso, costoVar, oper, notas };
+    await autoSave(); closeOv('ov-svc'); renderSvcs(); toast('Servicio actualizado ✓');
+  } else {
+    svcs.push({ id: Date.now().toString(), grua, fecha, cliente, tipo, acces, horas, km, ingreso, costoVar, oper, notas });
+    await autoSave(); closeOv('ov-svc'); renderSvcs(); toast('Servicio registrado ✓');
+  }
+}
+
+async function delSvc(id){ if(!confirm('¿Eliminar?'))return; svcs=svcs.filter(s=>s.id!==id); await autoSave(); renderSvcs(); }
+
+// ==================== MANTENIMIENTO ====================
+
+function renderMant(){
+  const data=[...mant].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  document.getElementById('mant-tbody').innerHTML=data.length?data.map(m=>`<tr><td class="mc">${m.fecha}</td><td><span class="badge badge-blue">${m.grua}</span></td><td><span class="badge badge-${m.tipo==='Correctivo'?'red':m.tipo==='Preventivo'?'green':'yellow'}">${m.tipo}</span></td><td>${m.desc}</td><td style="font-size:12px;color:var(--dim);">${m.taller||'—'}</td><td class="mc" style="color:var(--amber);">${fmt(m.costo||0)}</td><td><button class="btn-sm danger" onclick="delMant('${m.id}')">✕</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--x);padding:28px;font-family:var(--mono);font-size:11px;">SIN REGISTROS</td></tr>';
+  ['T1','T2'].forEach(g=>{ const gd=mant.filter(m=>m.grua===g),tot=gd.reduce((s,r)=>s+(+r.costo||0),0); document.getElementById(`mant-${g.toLowerCase()}-tot`).textContent=fmt(tot); document.getElementById(`mant-${g.toLowerCase()}-cnt`).textContent=`${gd.length} registros`; });
+}
+
+function openModalMant(){ ['mt-fecha'].forEach(id=>document.getElementById(id).value=HOY_STR); document.getElementById('mt-grua').value='T1'; document.getElementById('mt-tipo').selectedIndex=0; ['mt-desc','mt-taller','mt-notas'].forEach(id=>document.getElementById(id).value=''); document.getElementById('mt-costo').value='0'; openOv('ov-mant'); }
+
+async function saveMant(){
+  const g=document.getElementById('mt-grua').value,f=document.getElementById('mt-fecha').value,desc=document.getElementById('mt-desc').value.trim();
+  if(!f||!desc){toast('Completa fecha y descripción','error');return;}
+  mant.push({id:Date.now().toString(),grua:g,fecha:f,tipo:document.getElementById('mt-tipo').value,desc,taller:document.getElementById('mt-taller').value.trim(),costo:+document.getElementById('mt-costo').value||0,notas:document.getElementById('mt-notas').value.trim()});
+  await autoSave(); closeOv('ov-mant'); renderMant(); toast('Mantenimiento registrado ✓');
+}
+
+async function delMant(id){ if(!confirm('¿Eliminar?'))return; mant=mant.filter(m=>m.id!==id); await autoSave(); renderMant(); }
+
+// ==================== ALERTAS ====================
+
+function renderAlertas(){
+  // Mantenimiento preventivo
+  const grid=document.getElementById('alertas-grid');
+  grid.innerHTML='';
+  alertas.sort((a,b)=>a.grua.localeCompare(b.grua)||a.concepto.localeCompare(b.concepto)).forEach(al=>{
+    let uso=0,total=al.cada,restante=0,pct=0,c='green';
+    if(al.tipo==='horas'){
+      uso=horasSvcsDesde(al.grua,al.ultimaFecha);
+      restante=Math.max(0,total-uso);
+      pct=Math.min(100,(uso/total)*100);
+    } else {
+      uso=mesesDesde(al.ultimaFecha);
+      restante=Math.max(0,total-uso);
+      pct=Math.min(100,(uso/total)*100);
+    }
+    if(pct>=100)c='red'; else if(pct>=75)c='yellow';
+    const u=al.tipo==='horas'?'hrs':'meses';
+    const card=document.createElement('div');
+    card.className='alert-card';
+    card.innerHTML=`
+      <div class="dot ${c}" style="margin-top:3px;"></div>
+      <div class="alert-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div class="alert-title">${al.concepto}</div>
+            <div class="alert-meta"><span class="badge badge-blue">${al.grua}</span> · Cada ${al.cada} ${u} · ${al.notas||''}</div>
+          </div>
+          <span class="badge badge-${c==='green'?'green':c==='yellow'?'yellow':'red'}">${c==='red'?(al.tipo==='horas'?uso.toFixed(0)+' hrs':uso+' meses')+' — REVISAR':restante.toFixed(0)+' '+u+' restantes'}</span>
+        </div>
+        <div class="prog-wrap"><div class="prog-fill ${c}" style="width:${pct}%;"></div></div>
+        <div class="alert-stat">
+          <span style="color:var(--dim);">Acumulado desde ${al.ultimaFecha||'—'}: <b style="color:var(--text);">${al.tipo==='horas'?uso.toFixed(1)+' hrs':uso+' meses'}</b></span>
+          <span style="color:var(--dim);">Umbral: <b style="color:var(--text);">${al.cada} ${u}</b></span>
+        </div>
+        <div class="alert-actions">
+          <button class="btn-sm ok" onclick="resetAlerta(${al.id})">✓ REGISTRAR MANTENIMIENTO</button>
+          <button class="btn-sm" onclick="editAlerta(${al.id})">✏️ Editar</button>
+          <button class="btn-sm danger" onclick="delAlerta(${al.id})">✕</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+  if(!alertas.length) grid.innerHTML='<p style="font-family:var(--mono);font-size:11px;color:var(--x);">Sin alertas configuradas</p>';
+
+  // Pagos recurrentes
+  const body=document.getElementById('pagos-tbody');
+  body.innerHTML=pagos.length?pagos.map(p=>{
+    const d=diasHasta(p.fecha),c=semColor(d);
+    return`<tr><td><div class="dot ${c}"></div></td><td style="font-weight:600;">${p.concepto}</td><td><span class="badge badge-${p.grua==='General'?'blue':p.grua==='T1'?'blue':'amber'}">${p.grua}</span></td><td class="mc" style="color:var(--amber);">${fmt(p.monto)}</td><td style="font-size:12px;color:var(--dim);">${p.freq}</td><td class="mc">${p.fecha}</td><td><span class="badge badge-${c==='gray'?'red':c}">${semLbl(d)}</span></td><td style="display:flex;gap:4px;padding:9px 11px;"><button class="btn-sm ok" onclick="registrarPago(${p.id})" title="Marcar como pagado y avanzar fecha">✓</button><button class="btn-sm" onclick="editPago(${p.id})">✏️</button><button class="btn-sm danger" onclick="delPago(${p.id})">✕</button></td></tr>`;
+  }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--x);padding:20px;font-family:var(--mono);font-size:11px;">SIN PAGOS REGISTRADOS</td></tr>';
+
+  // Total mensual
+  const totMes=pagos.reduce((s,p)=>s+montoMensual(+p.monto||0,p.freq),0);
+  document.getElementById('pagos-total-mes').textContent=fmt(totMes)+' / mes';
+}
+
+// Alertas preventivas
+function toggleAlertaTipo(){ const t=document.getElementById('al-tipo').value; document.getElementById('al-cada-lbl').textContent='Cada ('+(t==='horas'?'horas':'meses')+')'; }
+
+let editAlId=null;
+function openModalAlerta(){ editAlId=null; document.getElementById('alerta-mt').textContent='⚡ Alerta de Mantenimiento'; document.getElementById('al-grua').value='T1'; document.getElementById('al-tipo').value='horas'; document.getElementById('al-concepto').value=''; document.getElementById('al-cada').value='250'; document.getElementById('al-ultima').value=HOY_STR; document.getElementById('al-notas').value=''; toggleAlertaTipo(); openOv('ov-alerta'); }
+
+function editAlerta(id){ const a=alertas.find(x=>x.id===id); if(!a)return; editAlId=id; document.getElementById('alerta-mt').textContent='✏️ Editar Alerta'; document.getElementById('al-grua').value=a.grua; document.getElementById('al-tipo').value=a.tipo; document.getElementById('al-concepto').value=a.concepto; document.getElementById('al-cada').value=a.cada; document.getElementById('al-ultima').value=a.ultimaFecha||HOY_STR; document.getElementById('al-notas').value=a.notas||''; toggleAlertaTipo(); openOv('ov-alerta'); }
+
+async function saveAlerta(){
+  const g=document.getElementById('al-grua').value,t=document.getElementById('al-tipo').value,c=document.getElementById('al-concepto').value.trim(),ca=+document.getElementById('al-cada').value||0,u=document.getElementById('al-ultima').value,n=document.getElementById('al-notas').value.trim();
+  if(!c||!ca){toast('Completa concepto e intervalo','error');return;}
+  if(editAlId){ const i=alertas.findIndex(a=>a.id===editAlId); if(i>=0) alertas[i]={...alertas[i],grua:g,tipo:t,concepto:c,cada:ca,ultimaFecha:u,notas:n}; }
+  else alertas.push({id:Math.max(0,...alertas.map(a=>a.id))+1,grua:g,tipo:t,concepto:c,cada:ca,ultimaFecha:u,notas:n});
+  await autoSave(); closeOv('ov-alerta'); renderAlertas(); toast('Alerta guardada ✓');
+}
+
+async function resetAlerta(id){
+  if(!confirm('¿Registrar que este mantenimiento se realizó hoy?'))return;
+  const i=alertas.findIndex(a=>a.id===id); if(i>=0) alertas[i].ultimaFecha=HOY_STR;
+  // Also log in mantenimiento
+  const a=alertas[i];
+  mant.push({id:Date.now().toString(),grua:a.grua,fecha:HOY_STR,tipo:'Preventivo',desc:a.concepto+' (desde alerta)',taller:'',costo:0,notas:'Reseteo automático desde Alertas'});
+  await autoSave(); renderAlertas(); toast('Mantenimiento registrado y alerta reiniciada ✓');
+}
+
+async function delAlerta(id){ if(!confirm('¿Eliminar alerta?'))return; alertas=alertas.filter(a=>a.id!==id); await autoSave(); renderAlertas(); }
+
+// Pagos recurrentes
+let editPId=null;
+function openModalPago(){ editPId=null; document.getElementById('pago-mt').textContent='💳 Pago Recurrente'; document.getElementById('pg-concepto').value=''; document.getElementById('pg-grua').value='T1'; document.getElementById('pg-freq').value='mensual'; document.getElementById('pg-monto').value='0'; document.getElementById('pg-fecha').value=NEXT_MO; document.getElementById('pg-notas').value=''; openOv('ov-pago'); }
+
+function editPago(id){ const p=pagos.find(x=>x.id===id); if(!p)return; editPId=id; document.getElementById('pago-mt').textContent='✏️ Editar Pago'; document.getElementById('pg-concepto').value=p.concepto; document.getElementById('pg-grua').value=p.grua; document.getElementById('pg-freq').value=p.freq; document.getElementById('pg-monto').value=p.monto; document.getElementById('pg-fecha').value=p.fecha; document.getElementById('pg-notas').value=p.notas||''; openOv('ov-pago'); }
+
+async function savePago(){
+  const c=document.getElementById('pg-concepto').value.trim(),g=document.getElementById('pg-grua').value,f=document.getElementById('pg-freq').value,m=+document.getElementById('pg-monto').value||0,fe=document.getElementById('pg-fecha').value,n=document.getElementById('pg-notas').value.trim();
+  if(!c||!fe){toast('Completa concepto y fecha','error');return;}
+  if(editPId){ const i=pagos.findIndex(p=>p.id===editPId); if(i>=0) pagos[i]={...pagos[i],concepto:c,grua:g,freq:f,monto:m,fecha:fe,notas:n}; }
+  else pagos.push({id:Math.max(0,...pagos.map(p=>p.id))+1,concepto:c,grua:g,freq:f,monto:m,fecha:fe,notas:n});
+  await autoSave(); closeOv('ov-pago'); renderAlertas(); toast('Pago guardado ✓');
+}
+
+async function registrarPago(id){
+  if(!confirm('¿Marcar como pagado y avanzar a la siguiente fecha?'))return;
+  const i=pagos.findIndex(p=>p.id===id); if(i<0)return;
+  const p=pagos[i];
+  const cur=new Date(p.fecha+'T12:00:00');
+  cur.setMonth(cur.getMonth()+freqMeses(p.freq));
+  pagos[i].fecha=cur.toISOString().split('T')[0];
+  await autoSave(); renderAlertas(); renderResumen(); toast(`Pago registrado · Próximo: ${pagos[i].fecha}`);
+}
+
+async function delPago(id){ if(!confirm('¿Eliminar?'))return; pagos=pagos.filter(p=>p.id!==id); await autoSave(); renderAlertas(); }
+
+// ==================== MODALES ====================
+
+function openOv(id){ document.getElementById(id).classList.add('open'); }
+function closeOv(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(el=>{ el.addEventListener('click',function(e){ if(e.target===this)closeOv(this.id); }); });
+
+// ==================== TOAST ====================
+
+function toast(msg,type='ok'){
+  const t=document.createElement('div');
+  t.style.cssText=`position:fixed;bottom:22px;right:22px;z-index:999;background:${type==='error'?'var(--red)':'var(--blue)'};color:#fff;padding:11px 20px;border-radius:6px;font-family:var(--mono);font-size:11px;letter-spacing:.8px;animation:fi .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.5);max-width:360px;`;
+  t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+}
+
+// ==================== IMPORTAR DESDE COTIZADOR ====================
+
+async function importarSvcs(event){
+  const file = event.target.files[0];
+  if(!file){ return; }
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    // Acepta tanto array directo como objeto con propiedad servicios
+    const lista = Array.isArray(data) ? data : (data.servicios || data.historial || []);
+    if(!lista.length){ toast('El archivo no contiene servicios','error'); event.target.value=''; return; }
+
+    // Solo importa estados ejecutados / cobrados
+    const validos = lista.filter(s => {
+      const est = (s.estado||'').toUpperCase();
+      return !est || est==='EJECUTADA' || est==='COBRADA' || est==='EJECUTADO' || est==='COBRADO';
+    });
+
+    if(!validos.length){
+      toast('No hay servicios EJECUTADOS o COBRADOS en el archivo','error');
+      event.target.value=''; return;
+    }
+
+    // IDs ya importados (evita duplicados)
+    const idsExist = new Set(svcs.map(s=>s.id_cotizador).filter(Boolean));
+
+    let importados=0, duplicados=0, errores=0;
+
+    validos.forEach(s=>{
+      // Detección de duplicado por id_cotizador o combinación fecha+cliente
+      const idCot = s.id || s.id_cotizador || s.folio || null;
+      if(idCot && idsExist.has(String(idCot))){ duplicados++; return; }
+
+      try{
+        // Mapeo flexible: soporta nombres de campo del cotizador actual
+        const grua    = s.grua || s.unidad || s.equipo || 'T1';
+        const fecha   = s.fecha || s.fechaCotizacion || HOY_STR;
+        const cliente = s.cliente || s.nombreCliente || s.empresa || '—';
+        const tipo    = s.tipo || s.maniobra || s.tipoServicio || 'Maniobra Ligera';
+        const horas   = +(s.horas || s.cantidad || s.hrs || 4);
+        const km      = +(s.km || s.kilometros || 0);
+        const ingreso = +(s.ingreso_sinIVA || s.subtotal || s.montoSinIVA || (s.total ? s.total/1.16 : 0) || 0);
+        const folio   = s.folio || s.id_cotizador || idCot || '—';
+
+        svcs.push({
+          id:           Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+          id_cotizador: String(idCot || ''),
+          grua, fecha, cliente, tipo,
+          acces:    s.accesorio || s.acces || 'Bola rápida',
+          horas, km, ingreso,
+          costoVar: costoVarSvc(grua, horas, km),
+          oper:     s.operador || s.oper || '',
+          notas:    `Importado del cotizador · Folio ${folio}${s.notas?(' · '+s.notas):''}`,
+        });
+        if(idCot) idsExist.add(String(idCot));
+        importados++;
+      }catch(e){ errores++; }
+    });
+
+    event.target.value = '';
+    await autoSave();
+    renderSvcs();
+
+    // Banner informativo
+    const banner = document.getElementById('imp-banner');
+    const partes = [`✓ ${importados} servicios importados`];
+    if(duplicados) partes.push(`${duplicados} duplicados omitidos`);
+    if(errores)    partes.push(`${errores} con error`);
+    partes.push(`Total en archivo: ${lista.length} · Ejecutados/Cobrados: ${validos.length}`);
+    banner.innerHTML = partes.join(' &nbsp;·&nbsp; ');
+    banner.style.display='block';
+    setTimeout(()=>{ banner.style.display='none'; }, 8000);
+
+    toast(`Importados: ${importados} · Duplicados omitidos: ${duplicados}`);
+  }catch(e){
+    console.error(e);
+    toast('Error al leer el archivo. ¿Es el JSON correcto?','error');
+    event.target.value='';
+  }
+}
+
+// ==================== INIT ====================
+
+document.getElementById('hdrDate').textContent=HOY.toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'}).toUpperCase();
+
+(async()=>{
+  await initIDB();
+  await reconnectFolder();
+  renderResumen();
+})();
+</script>
+
+
+
+<script>
+/* ══════════════════════════════════════════════════
+   METARCO DASHBOARD — Microsoft Auth + OneDrive Sync
+   Injected layer — original code untouched above
+══════════════════════════════════════════════════ */
+const MS_DASH = {
   clientId: '6f7f3d07-3e40-4396-8f76-36d0f818d72d',
   tenantId: '3fce0139-013b-4c64-a04d-8605a9eb8088',
   admins:   ['a.medina@metarco.com.mx'],
-  scopes:   ['Files.ReadWrite', 'User.Read'],
-  filePath: 'METARCO/METARCO_Control_Gruas_Datos.json'
+  scopes:   ['Files.ReadWrite','User.Read'],
+  fileDash: 'METARCO/METARCO_Control_Gruas_Datos.json',
+  fileCot:  'METARCO/METARCO_Cotizador_Datos.json'
 };
 
-// --- MSAL ---
-const msal_app = new msal.PublicClientApplication({
+const msalDash = new msal.PublicClientApplication({
   auth: {
-    clientId: CFG.clientId,
-    authority: `https://login.microsoftonline.com/${CFG.tenantId}`,
-    redirectUri: 'https://arme183.github.io/metarco-gruas/METARCO_Control_Gruas.html',
+    clientId: MS_DASH.clientId,
+    authority: `https://login.microsoftonline.com/${MS_DASH.tenantId}`,
+    redirectUri: 'https://arme183.github.io/metarco-gruas/METARCO_Dashboard.html',
     navigateToLoginRequestUrl: false
   },
   cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
 });
 
-// --- STATE ---
-let S = {
-  user: null, role: null, data: null,
-  section: 'vencimientos',
-  saveTimer: null
-};
+let dashSaveTimer = null;
 
-// --- DEFAULT DATA ---
-function defaultData() {
-  return {
-    version: '2.0',
-    lastModified: new Date().toISOString(),
-    costos: {
-      T1: {
-        fijos: [
-          { id:'cf1', concepto:'Seguro vehicular',           monto:2500 },
-          { id:'cf2', concepto:'Tenencia',                   monto:800  },
-          { id:'cf3', concepto:'Verificación',               monto:300  },
-          { id:'cf4', concepto:'Permiso SCT',                monto:1200 },
-          { id:'cf5', concepto:'GPS / Rastreo',              monto:350  },
-          { id:'cf6', concepto:'Depreciación',               monto:3000 },
-          { id:'cf7', concepto:'Mantenimiento preventivo',   monto:2000 }
-        ],
-        operadorSueldo: 18000,
-        operadorHoras:  160,
-        variables: { dieselPrecio:24.5, dieselLts:8, lubricantes:500, llantas:800 }
-      },
-      T2: {
-        fijos: [
-          { id:'cf1', concepto:'Seguro vehicular',           monto:3200 },
-          { id:'cf2', concepto:'Tenencia',                   monto:1200 },
-          { id:'cf3', concepto:'Verificación',               monto:400  },
-          { id:'cf4', concepto:'Permiso SCT',                monto:1500 },
-          { id:'cf5', concepto:'GPS / Rastreo',              monto:350  },
-          { id:'cf6', concepto:'Depreciación',               monto:5000 },
-          { id:'cf7', concepto:'Mantenimiento preventivo',   monto:3000 }
-        ],
-        operadorSueldo: 22000,
-        operadorHoras:  160,
-        variables: { dieselPrecio:24.5, dieselLts:12, lubricantes:700, llantas:1200 }
-      }
-    },
-    vencimientos: [
-      {id:'v1', grua:'T1', documento:'Tarjeta de circulación',       fecha:'2026-12-31'},
-      {id:'v2', grua:'T1', documento:'Seguro vehicular',              fecha:'2026-09-15'},
-      {id:'v3', grua:'T1', documento:'Verificación',                  fecha:'2026-11-30'},
-      {id:'v4', grua:'T1', documento:'Permiso SCT',                   fecha:'2026-08-31'},
-      {id:'v5', grua:'T1', documento:'Certificación pluma DIAL-1054', fecha:'2027-03-15'},
-      {id:'v6', grua:'T1', documento:'Licencia operador',             fecha:'2026-07-20'},
-      {id:'v7', grua:'T1', documento:'Revisión física anual',         fecha:'2026-06-30'},
-      {id:'v8', grua:'T1', documento:'Póliza RC',                     fecha:'2026-09-15'},
-      {id:'v9', grua:'T2', documento:'Tarjeta de circulación',        fecha:'2026-12-31'},
-      {id:'v10',grua:'T2', documento:'Seguro vehicular',              fecha:'2026-09-15'},
-      {id:'v11',grua:'T2', documento:'Verificación',                  fecha:'2026-11-30'},
-      {id:'v12',grua:'T2', documento:'Permiso SCT',                   fecha:'2026-08-31'},
-      {id:'v13',grua:'T2', documento:'Certificación pluma BT4792',    fecha:'2027-01-20'},
-      {id:'v14',grua:'T2', documento:'Licencia operador',             fecha:'2026-10-15'},
-      {id:'v15',grua:'T2', documento:'Revisión física anual',         fecha:'2026-07-31'},
-      {id:'v16',grua:'T2', documento:'Póliza RC',                     fecha:'2026-09-15'}
-    ],
-    servicios: [],
-    mantenimiento: {
-      T1: {
-        hrsActuales: 0,
-        alerts: [
-          {id:'a1',concepto:'Aceite motor T444E',           tipo:'hrs', intervalo:250,  reset:0,    ultimaFecha:null},
-          {id:'a2',concepto:'Aceite hidráulico grúa',       tipo:'hrs', intervalo:1000, reset:0,    ultimaFecha:null},
-          {id:'a3',concepto:'Inspección cable de acero',    tipo:'hrs', intervalo:250,  reset:0,    ultimaFecha:null},
-          {id:'a4',concepto:'Inspección pluma (anual)',     tipo:'mes', intervalo:12,   reset:0,    ultimaFecha:null},
-          {id:'a5',concepto:'Ajuste de frenos',             tipo:'hrs', intervalo:500,  reset:0,    ultimaFecha:null}
-        ]
-      },
-      T2: {
-        hrsActuales: 0,
-        alerts: [
-          {id:'a6', concepto:'Aceite motor Cummins ISC',    tipo:'hrs', intervalo:500,  reset:0,    ultimaFecha:null},
-          {id:'a7', concepto:'Aceite hidráulico grúa',      tipo:'hrs', intervalo:1000, reset:0,    ultimaFecha:null},
-          {id:'a8', concepto:'Inspección cable de acero',   tipo:'hrs', intervalo:250,  reset:0,    ultimaFecha:null},
-          {id:'a9', concepto:'Inspección pluma (anual)',    tipo:'mes', intervalo:12,   reset:0,    ultimaFecha:null},
-          {id:'a10',concepto:'Turbo VGT — inspección',      tipo:'hrs', intervalo:500,  reset:0,    ultimaFecha:null}
-        ]
-      }
-    },
-    pagos: [
-      {id:'p1',concepto:'Seguro vehicular T1', monto:2500, venc:'2026-09-15', period:'mensual'},
-      {id:'p2',concepto:'Seguro vehicular T2', monto:3200, venc:'2026-09-15', period:'mensual'},
-      {id:'p3',concepto:'IMSS Operador T1',   monto:2800, venc:'2026-06-17', period:'mensual'},
-      {id:'p4',concepto:'IMSS Operador T2',   monto:3200, venc:'2026-06-17', period:'mensual'},
-      {id:'p5',concepto:'Permiso SCT T1',     monto:1200, venc:'2026-08-31', period:'anual'},
-      {id:'p6',concepto:'Permiso SCT T2',     monto:1500, venc:'2026-08-31', period:'anual'}
-    ],
-    historial: []
-  };
-}
-
-// --- AUTH ---
-async function login() {
+async function msLogin() {
+  document.getElementById('msLoginBtn').textContent = 'Conectando...';
   try {
-    const r = await msal_app.loginPopup({ scopes: CFG.scopes, prompt: 'select_account' });
-    await bootApp(r.account);
+    const r = await msalDash.loginPopup({ scopes: MS_DASH.scopes, prompt: 'select_account' });
+    await msBootDash(r.account);
   } catch(e) {
-    const el = document.getElementById('loginError');
-    el.textContent = 'No se pudo iniciar sesión. Asegúrate de usar tu cuenta METARCO (@metarco.com.mx).';
-    el.classList.remove('hidden');
+    const el = document.getElementById('msLoginError');
+    el.textContent = 'No se pudo iniciar sesión. Usa tu cuenta @metarco.com.mx.';
+    el.style.display = 'block';
+    document.getElementById('msLoginBtn').textContent = 'Iniciar sesión con Microsoft';
   }
 }
 
-async function logout() {
-  await msal_app.logoutPopup();
-  S = { user:null, role:null, data:null, section:'vencimientos', saveTimer:null };
-  document.getElementById('appShell').classList.remove('visible');
-  document.getElementById('loginScreen').style.display='flex';
+async function msLogout() {
+  await msalDash.logoutPopup();
+  location.reload();
 }
 
-async function getToken() {
-  const acc = msal_app.getAllAccounts();
+async function msGetToken() {
+  const acc = msalDash.getAllAccounts();
   if (!acc.length) return null;
   try {
-    const r = await msal_app.acquireTokenSilent({ scopes: CFG.scopes, account: acc[0] });
+    const r = await msalDash.acquireTokenSilent({ scopes: MS_DASH.scopes, account: acc[0] });
     return r.accessToken;
   } catch {
-    const r = await msal_app.acquireTokenPopup({ scopes: CFG.scopes });
+    const r = await msalDash.acquireTokenPopup({ scopes: MS_DASH.scopes });
     return r.accessToken;
   }
 }
 
-// --- GRAPH / ONEDRIVE ---
-const GRAPH = 'https://graph.microsoft.com/v1.0';
+const GRAPH_D = 'https://graph.microsoft.com/v1.0';
 
-async function loadFromOneDrive() {
-  sync('syncing','Cargando...');
+async function odDashRead(path) {
+  const tok = await msGetToken();
+  const r = await fetch(`${GRAPH_D}/me/drive/root:/${path}:/content`, { headers:{ Authorization:`Bearer ${tok}` } });
+  if (r.status === 404) return null;
+  return await r.json();
+}
+
+async function odDashWrite(path, data) {
+  const tok = await msGetToken();
+  data._lastModified = new Date().toISOString();
+  await fetch(`${GRAPH_D}/me/drive/root:/${path}:/content`, {
+    method: 'PUT',
+    headers: { Authorization:`Bearer ${tok}`, 'Content-Type':'application/json' },
+    body: JSON.stringify(data, null, 2)
+  });
+}
+
+function odDashSetSync(text, isError) {
+  const bar = document.getElementById('folderBar');
+  const dot = document.getElementById('folderDot');
+  const msg = document.getElementById('folderMsg');
+  if (!bar || !dot || !msg) return;
+  if (isError) {
+    dot.className = 'folder-dot off';
+    msg.style.color = 'var(--amber)';
+  } else {
+    dot.className = 'folder-dot on';
+    msg.style.color = 'var(--green)';
+  }
+  msg.textContent = text;
+}
+
+async function odDashSaveAll() {
+  odDashSetSync('☁ Guardando en OneDrive...', false);
   try {
-    const tok = await getToken();
-    const url = `${GRAPH}/me/drive/root:/${CFG.filePath}:/content`;
-    const r = await fetch(url, { headers:{ Authorization:`Bearer ${tok}` } });
-    if (r.status === 404) {
-      const d = defaultData();
-      await saveToOneDrive(d);
-      return d;
-    }
-    const d = await r.json();
-    sync('ok','Sincronizado');
-    return d;
+    const data = { costos, venc, svcs, mant, alertas, pagos, ts: new Date().toISOString() };
+    await odDashWrite(MS_DASH.fileDash, data);
+    odDashSetSync('✓ OneDrive · Guardado automático activo', false);
   } catch(e) {
-    sync('error','Sin conexión — datos locales');
-    return defaultData();
+    odDashSetSync('⚠ Error al guardar en OneDrive', true);
+    console.error('OneDrive save error:', e);
   }
 }
 
-async function saveToOneDrive(data) {
-  sync('syncing','Guardando...');
+function odDashScheduleSave() {
+  if (dashSaveTimer) clearTimeout(dashSaveTimer);
+  dashSaveTimer = setTimeout(odDashSaveAll, 1500);
+}
+
+async function msBootDash(account) {
+  // Hide login overlay
+  document.getElementById('msLoginOverlay').style.display = 'none';
+
+  // Update folder bar to show OneDrive status instead of local folder
+  const bar = document.getElementById('folderBar');
+  const btnFolder = document.getElementById('btnFolder');
+  const btnSave = document.getElementById('btnSaveFile');
+  if (btnFolder) btnFolder.style.display = 'none';
+  if (btnSave) btnSave.textContent = '☁ GUARDAR AHORA';
+  if (btnSave) btnSave.onclick = () => odDashSaveAll();
+
+  odDashSetSync('☁ Cargando desde OneDrive...', false);
+
   try {
-    const tok = await getToken();
-    data.lastModified = new Date().toISOString();
-    await fetch(`${GRAPH}/me/drive/root:/${CFG.filePath}:/content`, {
-      method:'PUT',
-      headers:{ Authorization:`Bearer ${tok}`, 'Content-Type':'application/json' },
-      body: JSON.stringify(data, null, 2)
-    });
-    sync('ok','Guardado ✓');
-    setTimeout(() => sync('ok','Sincronizado'), 3000);
-  } catch {
-    sync('error','Error al guardar');
-  }
-}
-
-function scheduleSave() {
-  if (S.saveTimer) clearTimeout(S.saveTimer);
-  S.saveTimer = setTimeout(() => saveToOneDrive(S.data), 1500);
-}
-
-function sync(status, text) {
-  const dot = document.getElementById('syncDot');
-  const txt = document.getElementById('syncText');
-  dot.className = 'sync-dot' + (status==='syncing' ? ' syncing' : status==='error' ? ' error' : '');
-  txt.textContent = text;
-}
-
-// --- BOOT ---
-async function bootApp(account) {
-  const email = (account.username || '').toLowerCase();
-  const isAdmin = CFG.admins.map(e=>e.toLowerCase()).includes(email);
-  S.user = account;
-  S.role = isAdmin ? 'admin' : 'operador';
-
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appShell').classList.add('visible');
-  document.getElementById('userName').textContent = account.name || account.username;
-  document.getElementById('userAvatar').textContent = (account.name || account.username)[0].toUpperCase();
-  document.getElementById('userRoleLbl').innerHTML =
-    `<span class="badge b-${S.role}">${isAdmin ? 'Admin' : 'Operador'}</span>`;
-
-  document.querySelectorAll('.admin-only').forEach(el =>
-    el.classList.toggle('hidden', !isAdmin)
-  );
-
-  S.data = await loadFromOneDrive();
-  navigate(S.section);
-}
-
-// --- NAVIGATE ---
-function navigate(sec) {
-  if (S.role !== 'admin' && ['costos','pagos'].includes(sec)) sec = 'vencimientos';
-  S.section = sec;
-  document.querySelectorAll('.nav-item').forEach(b =>
-    b.classList.toggle('active', b.dataset.sec === sec)
-  );
-  document.getElementById('mainContent').innerHTML = SECTIONS[sec] ? SECTIONS[sec]() : '';
-}
-
-// --- HELPERS ---
-const MXN = n => new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:0}).format(n||0);
-const uid  = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
-const today = () => new Date().toISOString().split('T')[0];
-
-function daysTo(fecha) {
-  if (!fecha) return 999;
-  return Math.ceil((new Date(fecha) - new Date()) / 86400000);
-}
-function semaforo(dias) {
-  if (dias <= 0)  return 'error';
-  if (dias <= 15) return 'error';
-  if (dias <= 30) return 'warn';
-  return 'ok';
-}
-
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.remove('hidden');
-  clearTimeout(t._t);
-  t._t = setTimeout(() => t.classList.add('hidden'), 3000);
-}
-function openModal(html) {
-  document.getElementById('modalContent').innerHTML = html;
-  document.getElementById('modalOverlay').classList.remove('hidden');
-}
-function closeModal() {
-  document.getElementById('modalOverlay').classList.add('hidden');
-}
-
-// ============================================================
-// SECCIÓN: COSTOS (Admin only)
-// ============================================================
-function renderCostos() {
-  function calc(u) {
-    const d = S.data.costos[u];
-    const totalFijo = d.fijos.reduce((s,f) => s+(f.monto||0), 0);
-    const hrs = d.operadorHoras || 160;
-    const fijoHr  = totalFijo / hrs;
-    const opHr    = d.operadorSueldo / hrs;
-    const varHr   = (d.variables.dieselPrecio * d.variables.dieselLts)
-                  + (d.variables.lubricantes / hrs)
-                  + (d.variables.llantas / hrs);
-    const totalHr = fijoHr + opHr + varHr;
-    return { totalFijo, fijoHr, opHr, varHr, totalHr };
+    // Load from OneDrive → populate app state
+    const data = await odDashRead(MS_DASH.fileDash);
+    if (data) {
+      if (data.costos)  { costos  = data.costos;  lsSave(LS.c, costos);   }
+      if (data.venc)    { venc    = data.venc;     lsSave(LS.v, venc);     }
+      if (data.svcs)    { svcs    = data.svcs;     lsSave(LS.s, svcs);     }
+      if (data.mant)    { mant    = data.mant;     lsSave(LS.m, mant);     }
+      if (data.alertas) { alertas = data.alertas;  lsSave(LS.a, alertas);  }
+      if (data.pagos)   { pagos   = data.pagos;    lsSave(LS.p, pagos);    }
+      if (typeof renderResumen === 'function') renderResumen();
+    }
+    odDashSetSync(`✓ OneDrive · ${account.username} · Auto-guardado activo`, false);
+  } catch(e) {
+    odDashSetSync('⚠ Sin conexión — usando datos locales', true);
   }
 
-  function panel(u) {
-    const d = S.data.costos[u];
-    const r = calc(u);
-    return `
-    <div>
-      <!-- Fijos -->
-      <div class="card mb20">
-        <div class="card-title"><span class="badge b-${u.toLowerCase()}">${u}</span> COSTOS FIJOS MENSUALES</div>
-        <table>
-          <thead><tr><th>Concepto</th><th class="tr">Monto/mes</th><th></th></tr></thead>
-          <tbody>
-            ${d.fijos.map(f=>`
-            <tr>
-              <td>${f.concepto}</td>
-              <td class="tr" style="font-weight:600;">${MXN(f.monto)}</td>
-              <td class="tr"><button class="btn btn-outline btn-sm" onclick="editFijo('${u}','${f.id}')">Editar</button></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-        <div class="flex jb ic mt16" style="padding-top:12px;border-top:1px solid var(--border-card);">
-          <span style="font-size:12px;color:var(--text-gray);font-weight:600;">Total fijo mensual</span>
-          <span style="font-weight:700;font-size:15px;">${MXN(r.totalFijo)}</span>
-        </div>
-      </div>
+  // Override autoSave to also save to OneDrive
+  window._origAutoSave = window.autoSave;
+  window.autoSave = async function() {
+    if (window._origAutoSave) await window._origAutoSave();
+    odDashScheduleSave();
+  };
 
-      <!-- Operador — solo Admin ve sueldo, solo ve costo/hr calculado -->
-      <div class="card mb20" style="border-left:3px solid var(--blue-ms);">
-        <div class="card-title">👤 OPERADOR ${u} <span class="admin-section-tag">🔒 Solo Admin</span></div>
-        <div class="g2 g12 mb16">
-          <div class="fg">
-            <label class="lbl">Sueldo mensual (MXN)</label>
-            <input type="number" class="inp" value="${d.operadorSueldo}"
-              onchange="updOp('${u}','s',this.value)">
-          </div>
-          <div class="fg">
-            <label class="lbl">Horas promedio / mes</label>
-            <input type="number" class="inp" value="${d.operadorHoras}"
-              onchange="updOp('${u}','h',this.value)">
-          </div>
-        </div>
-        <div style="background:rgba(0,120,212,0.07);border-radius:10px;padding:14px;display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:11px;color:var(--text-gray);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Costo operador / hora</div>
-            <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Calculado automáticamente</div>
-          </div>
-          <span id="opHr${u}" style="font-family:'Orbitron';font-weight:900;font-size:22px;color:var(--blue-ms);">${MXN(r.opHr)}</span>
-        </div>
-      </div>
+  // Override saveToFolder to use OneDrive
+  window.saveToFolder = async function(manual) {
+    await odDashSaveAll();
+    if (manual && window.toast) toast('Guardado en OneDrive ✓');
+  };
 
-      <!-- Variables -->
-      <div class="card mb20">
-        <div class="card-title">⛽ COSTOS VARIABLES — ${u}</div>
-        <div class="g2 g12">
-          <div class="fg">
-            <label class="lbl">Diesel ($/litro)</label>
-            <input type="number" step="0.1" class="inp" value="${d.variables.dieselPrecio}"
-              onchange="updVar('${u}','dieselPrecio',this.value)">
-          </div>
-          <div class="fg">
-            <label class="lbl">Consumo (litros/hr)</label>
-            <input type="number" step="0.5" class="inp" value="${d.variables.dieselLts}"
-              onchange="updVar('${u}','dieselLts',this.value)">
-          </div>
-          <div class="fg">
-            <label class="lbl">Lubricantes ($/mes)</label>
-            <input type="number" class="inp" value="${d.variables.lubricantes}"
-              onchange="updVar('${u}','lubricantes',this.value)">
-          </div>
-          <div class="fg">
-            <label class="lbl">Llantas ($/mes prorrateado)</label>
-            <input type="number" class="inp" value="${d.variables.llantas}"
-              onchange="updVar('${u}','llantas',this.value)">
-          </div>
-        </div>
-      </div>
+  // Override selectFolder (no longer needed with OneDrive)
+  window.selectFolder = function() {
+    toast('Los datos se guardan automáticamente en OneDrive');
+  };
 
-      <!-- Resumen -->
-      <div class="g4">
-        <div class="stat-card"><div class="stat-val" style="color:#3b82f6;font-size:17px;">${MXN(r.fijoHr)}</div><div class="stat-lbl">Fijo/hr</div></div>
-        <div class="stat-card"><div class="stat-val" style="color:#0078d4;font-size:17px;">${MXN(r.opHr)}</div><div class="stat-lbl">Operador/hr</div></div>
-        <div class="stat-card"><div class="stat-val" style="color:#f59e0b;font-size:17px;">${MXN(r.varHr)}</div><div class="stat-lbl">Variable/hr</div></div>
-        <div class="stat-card" style="background:#0a1628;">
-          <div class="stat-val" style="color:#22c55e;font-size:17px;">${MXN(r.totalHr)}</div>
-          <div class="stat-lbl" style="color:rgba(255,255,255,.5);">Costo total/hr</div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  return `
-  <div class="sec-header">
-    <div class="sec-title">COSTOS OPERATIVOS</div>
-    <div class="sec-sub">Estructura de costos T1 y T2 · Solo visible para administradores</div>
-  </div>
-  <div class="g2">${panel('T1')}${panel('T2')}</div>`;
+  // Logout button
+  const logoutBtn = document.createElement('button');
+  logoutBtn.textContent = 'Salir';
+  logoutBtn.style.cssText = 'background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-left:8px;';
+  logoutBtn.onclick = msLogout;
+  if (bar) bar.querySelector('.folder-actions').appendChild(logoutBtn);
 }
 
-function editFijo(u, id) {
-  const f = S.data.costos[u].fijos.find(x=>x.id===id);
-  openModal(`
-    <div class="modal-title">EDITAR COSTO FIJO — ${u}</div>
-    <div class="fg"><label class="lbl">Concepto</label><input id="_c" class="inp" value="${f.concepto}"></div>
-    <div class="fg"><label class="lbl">Monto mensual (MXN)</label><input id="_m" type="number" class="inp" value="${f.monto}"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveFijo('${u}','${id}')">Guardar</button>
-    </div>`);
-}
-function saveFijo(u,id) {
-  const f = S.data.costos[u].fijos.find(x=>x.id===id);
-  f.concepto = document.getElementById('_c').value;
-  f.monto    = parseFloat(document.getElementById('_m').value)||0;
-  closeModal(); scheduleSave(); navigate('costos'); toast('Costo actualizado');
-}
-function updOp(u, campo, v) {
-  if (campo==='s') S.data.costos[u].operadorSueldo = parseFloat(v)||0;
-  if (campo==='h') S.data.costos[u].operadorHoras  = parseFloat(v)||160;
-  const el = document.getElementById(`opHr${u}`);
-  if (el) {
-    const d=S.data.costos[u];
-    el.textContent = MXN(d.operadorSueldo/(d.operadorHoras||160));
-  }
-  scheduleSave();
-}
-function updVar(u,k,v) {
-  S.data.costos[u].variables[k] = parseFloat(v)||0;
-  scheduleSave();
-}
-
-// ============================================================
-// SECCIÓN: VENCIMIENTOS
-// ============================================================
-function renderVencimientos() {
-  function grupo(grua) {
-    const docs = S.data.vencimientos.filter(v=>v.grua===grua);
-    return `
-    <div class="card mb20">
-      <div class="flex jb ic mb16">
-        <div class="card-title" style="margin:0;border:0;padding:0;"><span class="badge b-${grua.toLowerCase()}">${grua}</span>&nbsp;Documentos</div>
-        <button class="btn btn-outline btn-sm" onclick="addVenc('${grua}')">+ Agregar</button>
-      </div>
-      <table>
-        <thead><tr><th></th><th>Documento</th><th>Vencimiento</th><th>Días</th><th>Estado</th><th></th></tr></thead>
-        <tbody>
-          ${docs.map(v=>{
-            const d=daysTo(v.fecha), s=semaforo(d);
-            return `<tr>
-              <td><span class="dot dot-${s}"></span></td>
-              <td style="font-weight:500;">${v.documento}</td>
-              <td>${v.fecha||'—'}</td>
-              <td style="font-weight:700;color:${s==='ok'?'#22c55e':s==='warn'?'#f59e0b':'#ef4444'};">
-                ${d<=0?'VENCIDO':d+' días'}
-              </td>
-              <td><span class="badge b-${s}">${s==='ok'?'Vigente':s==='warn'?'Por vencer':'Vencido'}</span></td>
-              <td class="tr"><button class="btn btn-outline btn-sm" onclick="editVenc('${v.id}')">Editar</button></td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`;
-  }
-
-  const alertas = S.data.vencimientos.filter(v=>daysTo(v.fecha)<=30);
-  return `
-  <div class="sec-header">
-    <div class="sec-title">VENCIMIENTOS</div>
-    <div class="sec-sub">Documentos y certificaciones — T1 y T2</div>
-  </div>
-  ${alertas.length ? `
-  <div class="card-dark mb20" style="border-color:rgba(245,158,11,.4);">
-    <div style="font-family:'Orbitron';font-size:10px;letter-spacing:2px;color:#f59e0b;margin-bottom:12px;">⚠ ALERTAS ACTIVAS (${alertas.length})</div>
-    ${alertas.map(v=>{const d=daysTo(v.fecha);return `
-    <div class="flex jb" style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);">
-      <span style="font-size:13px;">${v.grua} · ${v.documento}</span>
-      <span style="font-size:13px;font-weight:700;color:${d<=0?'#ef4444':'#f59e0b'};">${d<=0?'VENCIDO':d+' días'}</span>
-    </div>`}).join('')}
-  </div>` : ''}
-  ${grupo('T1')}${grupo('T2')}`;
-}
-
-function editVenc(id) {
-  const v=S.data.vencimientos.find(x=>x.id===id);
-  openModal(`
-    <div class="modal-title">EDITAR DOCUMENTO — ${v.grua}</div>
-    <div class="fg"><label class="lbl">Documento</label><input id="_d" class="inp" value="${v.documento}"></div>
-    <div class="fg"><label class="lbl">Fecha de vencimiento</label><input id="_f" type="date" class="inp" value="${v.fecha}"></div>
-    <div class="modal-actions">
-      <button class="btn btn-danger btn-sm" onclick="delVenc('${id}')">Eliminar</button>
-      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveVenc('${id}')">Guardar</button>
-    </div>`);
-}
-function addVenc(grua) {
-  const id=uid(); S.data.vencimientos.push({id,grua,documento:'',fecha:''});
-  editVenc(id);
-}
-function saveVenc(id) {
-  const v=S.data.vencimientos.find(x=>x.id===id);
-  v.documento=document.getElementById('_d').value;
-  v.fecha=document.getElementById('_f').value;
-  closeModal(); scheduleSave(); navigate('vencimientos'); toast('Documento actualizado');
-}
-function delVenc(id) {
-  S.data.vencimientos=S.data.vencimientos.filter(x=>x.id!==id);
-  closeModal(); scheduleSave(); navigate('vencimientos'); toast('Documento eliminado');
-}
-
-// ============================================================
-// SECCIÓN: SERVICIOS
-// ============================================================
-function renderServicios() {
-  const ss = S.data.servicios||[];
-  const ingTotal = ss.reduce((t,s)=>t+(s.ingreso||0),0);
-  const marTotal = ss.reduce((t,s)=>t+((s.ingreso||0)-(s.costo||0)),0);
-  return `
-  <div class="sec-header">
-    <div class="flex jb ic">
-      <div><div class="sec-title">BITÁCORA DE SERVICIOS</div><div class="sec-sub">Registro de maniobras ejecutadas</div></div>
-      <button class="btn btn-primary" onclick="addServicio()">+ Nuevo servicio</button>
-    </div>
-  </div>
-  <div class="g3 mb20">
-    <div class="stat-card"><div class="stat-val" style="color:#3b82f6;">${ss.length}</div><div class="stat-lbl">Servicios</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#22c55e;font-size:18px;">${MXN(ingTotal)}</div><div class="stat-lbl">Ingresos totales</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#f59e0b;font-size:18px;">${MXN(marTotal)}</div><div class="stat-lbl">Margen total</div></div>
-  </div>
-  <div class="card" style="padding:0;overflow:hidden;">
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Fecha</th><th>Grúa</th><th>Cliente</th><th>Tipo</th><th class="tr">Horas</th><th class="tr">Ingreso</th><th class="tr">Costo var.</th><th class="tr">Margen</th><th></th></tr></thead>
-        <tbody>
-          ${!ss.length ? `<tr class="tr-empty"><td colspan="9">Sin servicios registrados. Agrega el primero.</td></tr>` :
-            ss.map(s=>{const m=(s.ingreso||0)-(s.costo||0); return `
-            <tr>
-              <td>${s.fecha||'—'}</td>
-              <td><span class="badge b-${(s.grua||'').toLowerCase()}">${s.grua||'—'}</span></td>
-              <td style="font-weight:500;">${s.cliente||'—'}</td>
-              <td>${s.tipo||'—'}</td>
-              <td class="tr">${s.horas||0} hr</td>
-              <td class="tr" style="font-weight:600;">${MXN(s.ingreso)}</td>
-              <td class="tr">${MXN(s.costo)}</td>
-              <td class="tr" style="font-weight:700;color:${m>=0?'#22c55e':'#ef4444'};">${MXN(m)}</td>
-              <td><button class="btn btn-outline btn-sm" onclick="editServicio('${s.id}')">Editar</button></td>
-            </tr>`}).join('')}
-        </tbody>
-      </table>
-    </div>
-  </div>`;
-}
-
-function addServicio() {
-  openModal(`
-    <div class="modal-title">NUEVO SERVICIO</div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Fecha</label><input id="_sf" type="date" class="inp" value="${today()}"></div>
-      <div class="fg"><label class="lbl">Grúa</label>
-        <select id="_sg" class="sel"><option value="T1">T1 — 14 ton</option><option value="T2">T2 — 23 ton</option></select></div>
-    </div>
-    <div class="fg"><label class="lbl">Cliente</label><input id="_sc" class="inp" placeholder="Nombre del cliente"></div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Tipo de maniobra</label>
-        <select id="_st" class="sel"><option>Izaje</option><option>Elevación</option><option>Flete con carga/descarga</option><option>Maniobra especial</option><option>Arrastre</option></select></div>
-      <div class="fg"><label class="lbl">Accesorio</label>
-        <select id="_sa" class="sel"><option value="">Ninguno</option><option>Canastilla</option><option>Balancín</option><option>Eslingas</option></select></div>
-    </div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Horas trabajadas</label><input id="_sh" type="number" step="0.5" class="inp" placeholder="0"></div>
-      <div class="fg"><label class="lbl">Km recorridos</label><input id="_sk" type="number" class="inp" placeholder="0"></div>
-    </div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Ingreso total (sin IVA)</label><input id="_si" type="number" class="inp" placeholder="0"></div>
-      <div class="fg"><label class="lbl">Costo variable estimado</label><input id="_sv" type="number" class="inp" placeholder="0"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveServicio()">Guardar</button>
-    </div>`);
-}
-
-function saveServicio() {
-  S.data.servicios.unshift({
-    id:uid(), fecha:document.getElementById('_sf').value,
-    grua:document.getElementById('_sg').value,
-    cliente:document.getElementById('_sc').value,
-    tipo:document.getElementById('_st').value,
-    accesorio:document.getElementById('_sa').value,
-    horas:parseFloat(document.getElementById('_sh').value)||0,
-    km:parseFloat(document.getElementById('_sk').value)||0,
-    ingreso:parseFloat(document.getElementById('_si').value)||0,
-    costo:parseFloat(document.getElementById('_sv').value)||0
-  });
-  closeModal(); scheduleSave(); navigate('servicios'); toast('Servicio registrado');
-}
-
-function editServicio(id) {
-  const s=S.data.servicios.find(x=>x.id===id);
-  openModal(`
-    <div class="modal-title">EDITAR SERVICIO</div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Fecha</label><input id="_sf" type="date" class="inp" value="${s.fecha}"></div>
-      <div class="fg"><label class="lbl">Grúa</label>
-        <select id="_sg" class="sel"><option value="T1" ${s.grua==='T1'?'selected':''}>T1</option><option value="T2" ${s.grua==='T2'?'selected':''}>T2</option></select></div>
-    </div>
-    <div class="fg"><label class="lbl">Cliente</label><input id="_sc" class="inp" value="${s.cliente}"></div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Horas</label><input id="_sh" type="number" step="0.5" class="inp" value="${s.horas}"></div>
-      <div class="fg"><label class="lbl">Ingreso (sin IVA)</label><input id="_si" type="number" class="inp" value="${s.ingreso}"></div>
-    </div>
-    <div class="fg"><label class="lbl">Costo variable</label><input id="_sv" type="number" class="inp" value="${s.costo}"></div>
-    <div class="modal-actions">
-      <button class="btn btn-danger btn-sm" onclick="delServicio('${id}')">Eliminar</button>
-      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="updServicio('${id}')">Guardar</button>
-    </div>`);
-}
-function updServicio(id) {
-  const s=S.data.servicios.find(x=>x.id===id);
-  s.fecha=document.getElementById('_sf').value;
-  s.grua=document.getElementById('_sg').value;
-  s.cliente=document.getElementById('_sc').value;
-  s.horas=parseFloat(document.getElementById('_sh').value)||0;
-  s.ingreso=parseFloat(document.getElementById('_si').value)||0;
-  s.costo=parseFloat(document.getElementById('_sv').value)||0;
-  closeModal(); scheduleSave(); navigate('servicios'); toast('Servicio actualizado');
-}
-function delServicio(id) {
-  S.data.servicios=S.data.servicios.filter(x=>x.id!==id);
-  closeModal(); scheduleSave(); navigate('servicios'); toast('Servicio eliminado');
-}
-
-// ============================================================
-// SECCIÓN: MANTENIMIENTO
-// ============================================================
-function renderMantenimiento() {
-  function panel(grua) {
-    const m=S.data.mantenimiento[grua];
-    const hrs=m.hrsActuales||0;
-    return `
-    <div class="card mb20">
-      <div class="flex jb ic mb16">
-        <div class="card-title" style="margin:0;border:0;padding:0;"><span class="badge b-${grua.toLowerCase()}">${grua}</span>&nbsp;Alertas preventivas</div>
-        <div class="flex ic g8">
-          <span style="font-size:11px;color:var(--text-gray);">Hrs actuales:</span>
-          <input type="number" style="width:72px;padding:4px 8px;border:1.5px solid var(--border-card);border-radius:7px;font-size:13px;font-weight:700;color:var(--text-dark);"
-            value="${hrs}" onchange="updHrs('${grua}',this.value)">
-        </div>
-      </div>
-      ${m.alerts.map(a=>{
-        let pct=0, sc='ok', lbl='';
-        if (a.tipo==='hrs') {
-          const desde=hrs-(a.reset||0);
-          pct=Math.min(100,(desde/a.intervalo)*100);
-          const rest=a.intervalo-desde;
-          lbl=rest<=0?'¡REALIZAR AHORA!': `${rest} hrs restantes`;
-          sc=pct>=100?'error':pct>=80?'warn':'ok';
-        } else {
-          if (a.ultimaFecha) {
-            const meses=(new Date()-new Date(a.ultimaFecha))/(86400000*30);
-            pct=Math.min(100,(meses/a.intervalo)*100);
-            const mRest=a.intervalo-meses;
-            lbl=mRest<=0?'¡REALIZAR AHORA!':`${Math.ceil(mRest)} meses restantes`;
-            sc=pct>=100?'error':pct>=80?'warn':'ok';
-          } else { pct=0; lbl='Sin fecha registrada'; sc='warn'; }
-        }
-        return `
-        <div style="padding:12px 0;border-bottom:1px solid var(--border-card);">
-          <div class="flex jb ic">
-            <span style="font-size:13px;font-weight:500;color:var(--text-dark);">${a.concepto}</span>
-            <div class="flex ic g8">
-              <span style="font-size:11px;font-weight:600;color:${sc==='ok'?'#22c55e':sc==='warn'?'#f59e0b':'#ef4444'};">${lbl}</span>
-              <button class="btn btn-outline btn-sm" onclick="resetAlerta('${grua}','${a.id}')">✓ Reset</button>
-            </div>
-          </div>
-          <div class="prog"><div class="prog-fill ${sc!=='ok'?sc:''}" style="width:${pct}%"></div></div>
-        </div>`}).join('')}
-    </div>`;
-  }
-  return `
-  <div class="sec-header">
-    <div class="sec-title">MANTENIMIENTO PREVENTIVO</div>
-    <div class="sec-sub">Alertas basadas en horas de operación e intervalos de servicio</div>
-  </div>
-  <div class="g2">${panel('T1')}${panel('T2')}</div>`;
-}
-
-function updHrs(grua, v) {
-  S.data.mantenimiento[grua].hrsActuales=parseFloat(v)||0;
-  scheduleSave();
-}
-function resetAlerta(grua, alertId) {
-  const a=S.data.mantenimiento[grua].alerts.find(x=>x.id===alertId);
-  if (!a) return;
-  if (a.tipo==='hrs') a.reset=S.data.mantenimiento[grua].hrsActuales;
-  else a.ultimaFecha=today();
-  S.data.historial.unshift({
-    id:uid(), fecha:today(), grua, tipo:'Preventivo',
-    descripcion:a.concepto, taller:'', costo:0
-  });
-  scheduleSave(); navigate('mantenimiento'); toast(`${a.concepto} — reseteado`);
-}
-
-// ============================================================
-// SECCIÓN: PAGOS (Admin)
-// ============================================================
-function renderPagos() {
-  const ps=S.data.pagos||[];
-  const total=ps.reduce((t,p)=>t+(p.monto||0),0);
-  return `
-  <div class="sec-header">
-    <div class="flex jb ic">
-      <div><div class="sec-title">PAGOS RECURRENTES</div><div class="sec-sub">Compromisos periódicos y fechas de vencimiento</div></div>
-      <button class="btn btn-primary" onclick="addPago()">+ Agregar</button>
-    </div>
-  </div>
-  <div class="g3 mb20">
-    <div class="stat-card"><div class="stat-val" style="color:#0078d4;font-size:18px;">${MXN(total)}</div><div class="stat-lbl">Total compromisos/mes</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#ef4444;">${ps.filter(p=>daysTo(p.venc)<=7).length}</div><div class="stat-lbl">Vencen en 7 días</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#f59e0b;">${ps.filter(p=>daysTo(p.venc)<=30&&daysTo(p.venc)>7).length}</div><div class="stat-lbl">Vencen en 30 días</div></div>
-  </div>
-  <div class="card" style="padding:0;overflow:hidden;">
-    <table>
-      <thead><tr><th></th><th>Concepto</th><th>Periodicidad</th><th>Próx. vencimiento</th><th>Días</th><th class="tr">Monto</th><th></th></tr></thead>
-      <tbody>
-        ${ps.map(p=>{const d=daysTo(p.venc),s=semaforo(d); return `
-        <tr>
-          <td><span class="dot dot-${s}"></span></td>
-          <td style="font-weight:500;">${p.concepto}</td>
-          <td style="color:#64748b;">${p.period}</td>
-          <td>${p.venc||'—'}</td>
-          <td style="font-weight:700;color:${s==='ok'?'#22c55e':s==='warn'?'#f59e0b':'#ef4444'};">${d<=0?'HOY':d+' días'}</td>
-          <td class="tr" style="font-weight:700;">${MXN(p.monto)}</td>
-          <td class="tr" style="white-space:nowrap;">
-            <button class="btn btn-outline btn-sm" onclick="pagar('${p.id}')">✓ Pagado</button>
-            <button class="btn btn-outline btn-sm" onclick="editPago('${p.id}')">Editar</button>
-          </td>
-        </tr>`}).join('')}
-      </tbody>
-    </table>
-  </div>`;
-}
-
-function addPago() {
-  openModal(`
-    <div class="modal-title">NUEVO PAGO RECURRENTE</div>
-    <div class="fg"><label class="lbl">Concepto</label><input id="_pc" class="inp" placeholder="Ej. Seguro vehicular T1"></div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Monto (MXN)</label><input id="_pm" type="number" class="inp"></div>
-      <div class="fg"><label class="lbl">Periodicidad</label>
-        <select id="_pp" class="sel"><option>mensual</option><option>bimestral</option><option>trimestral</option><option>semestral</option><option>anual</option></select></div>
-    </div>
-    <div class="fg"><label class="lbl">Próximo vencimiento</label><input id="_pf" type="date" class="inp"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="savePago()">Guardar</button>
-    </div>`);
-}
-function savePago() {
-  S.data.pagos.push({
-    id:uid(), concepto:document.getElementById('_pc').value,
-    monto:parseFloat(document.getElementById('_pm').value)||0,
-    period:document.getElementById('_pp').value,
-    venc:document.getElementById('_pf').value
-  });
-  closeModal(); scheduleSave(); navigate('pagos'); toast('Pago agregado');
-}
-function editPago(id) {
-  const p=S.data.pagos.find(x=>x.id===id);
-  openModal(`
-    <div class="modal-title">EDITAR PAGO</div>
-    <div class="fg"><label class="lbl">Concepto</label><input id="_pc" class="inp" value="${p.concepto}"></div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Monto</label><input id="_pm" type="number" class="inp" value="${p.monto}"></div>
-      <div class="fg"><label class="lbl">Próx. vencimiento</label><input id="_pf" type="date" class="inp" value="${p.venc}"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-danger btn-sm" onclick="delPago('${id}')">Eliminar</button>
-      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="updPago('${id}')">Guardar</button>
-    </div>`);
-}
-function updPago(id) {
-  const p=S.data.pagos.find(x=>x.id===id);
-  p.concepto=document.getElementById('_pc').value;
-  p.monto=parseFloat(document.getElementById('_pm').value)||0;
-  p.venc=document.getElementById('_pf').value;
-  closeModal(); scheduleSave(); navigate('pagos'); toast('Pago actualizado');
-}
-function delPago(id) {
-  S.data.pagos=S.data.pagos.filter(x=>x.id!==id);
-  closeModal(); scheduleSave(); navigate('pagos'); toast('Pago eliminado');
-}
-function pagar(id) {
-  const p=S.data.pagos.find(x=>x.id===id);
-  const f=new Date(p.venc);
-  const m={mensual:1,bimestral:2,trimestral:3,semestral:6,anual:12};
-  f.setMonth(f.getMonth()+(m[p.period]||1));
-  p.venc=f.toISOString().split('T')[0];
-  scheduleSave(); navigate('pagos'); toast(`${p.concepto} — próximo venc. avanzado`);
-}
-
-// ============================================================
-// SECCIÓN: HISTORIAL
-// ============================================================
-function renderHistorial() {
-  const h=S.data.historial||[];
-  return `
-  <div class="sec-header">
-    <div class="flex jb ic">
-      <div><div class="sec-title">HISTORIAL DE MANTENIMIENTO</div><div class="sec-sub">Preventivos, correctivos e inspecciones</div></div>
-      <button class="btn btn-primary" onclick="addHistorial()">+ Agregar</button>
-    </div>
-  </div>
-  <div class="card" style="padding:0;overflow:hidden;">
-    <table>
-      <thead><tr><th>Fecha</th><th>Grúa</th><th>Tipo</th><th>Descripción</th><th>Taller</th><th class="tr">Costo</th><th></th></tr></thead>
-      <tbody>
-        ${!h.length ? `<tr class="tr-empty"><td colspan="7">Sin registros de mantenimiento.</td></tr>` :
-          h.map(x=>`
-          <tr>
-            <td>${x.fecha||'—'}</td>
-            <td><span class="badge b-${(x.grua||'').toLowerCase()}">${x.grua||'—'}</span></td>
-            <td><span class="badge b-${x.tipo==='Preventivo'?'ok':x.tipo==='Correctivo'?'error':'warn'}">${x.tipo}</span></td>
-            <td style="font-weight:500;">${x.descripcion||'—'}</td>
-            <td style="color:#64748b;">${x.taller||'—'}</td>
-            <td class="tr">${MXN(x.costo)}</td>
-            <td><button class="btn btn-outline btn-sm" onclick="delHistorial('${x.id}')">✕</button></td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
-  </div>`;
-}
-function addHistorial() {
-  openModal(`
-    <div class="modal-title">NUEVO REGISTRO DE MANTENIMIENTO</div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Fecha</label><input id="_hf" type="date" class="inp" value="${today()}"></div>
-      <div class="fg"><label class="lbl">Grúa</label><select id="_hg" class="sel"><option>T1</option><option>T2</option></select></div>
-    </div>
-    <div class="fg"><label class="lbl">Tipo</label>
-      <select id="_ht" class="sel"><option>Preventivo</option><option>Correctivo</option><option>Inspección</option></select></div>
-    <div class="fg"><label class="lbl">Descripción</label><input id="_hd" class="inp" placeholder="Ej. Cambio aceite motor"></div>
-    <div class="g2 g12">
-      <div class="fg"><label class="lbl">Taller / Técnico</label><input id="_hta" class="inp" placeholder="Nombre del taller"></div>
-      <div class="fg"><label class="lbl">Costo (MXN)</label><input id="_hc" type="number" class="inp" placeholder="0"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveHistorial()">Guardar</button>
-    </div>`);
-}
-function saveHistorial() {
-  S.data.historial.unshift({
-    id:uid(), fecha:document.getElementById('_hf').value,
-    grua:document.getElementById('_hg').value,
-    tipo:document.getElementById('_ht').value,
-    descripcion:document.getElementById('_hd').value,
-    taller:document.getElementById('_hta').value,
-    costo:parseFloat(document.getElementById('_hc').value)||0
-  });
-  closeModal(); scheduleSave(); navigate('historial'); toast('Registro agregado');
-}
-function delHistorial(id) {
-  S.data.historial=S.data.historial.filter(x=>x.id!==id);
-  scheduleSave(); navigate('historial'); toast('Registro eliminado');
-}
-
-// ============================================================
-// SECTIONS MAP
-// ============================================================
-const SECTIONS = {
-  costos: renderCostos,
-  vencimientos: renderVencimientos,
-  servicios: renderServicios,
-  mantenimiento: renderMantenimiento,
-  pagos: renderPagos,
-  historial: renderHistorial
-};
-
-// Close modal on overlay click
-document.getElementById('modalOverlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('modalOverlay')) closeModal();
-});
-
-// ============================================================
-// INIT — recuperar sesión existente
-// ============================================================
+// Auto-login if session exists
 (async () => {
-  await msal_app.initialize();
-  const accounts = msal_app.getAllAccounts();
+  await msalDash.initialize();
+  const accounts = msalDash.getAllAccounts();
   if (accounts.length > 0) {
-    await bootApp(accounts[0]);
+    await msBootDash(accounts[0]);
   }
 })();
 </script>
-</body>
-</html>
+
+</body></html>
