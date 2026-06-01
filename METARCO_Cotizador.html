@@ -1046,10 +1046,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 </style>
 </head>
 <body>
-
-<!-- ══════════════════════════════════════════════════
-     METARCO MICROSOFT LOGIN OVERLAY
-══════════════════════════════════════════════════ -->
+<div class="header-logo" style="display:none;"><img src="https://raw.githubusercontent.com/arme183/metarco-gruas/main/LOGO%20METARCO1.png" crossorigin="anonymous"></div>
+<!-- METARCO LOGIN OVERLAY -->
 <div id="msLoginOverlay" style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 80%,#1a3d6b 0%,#0a1628 70%);">
   <div style="display:flex;flex-direction:column;align-items:center;">
     <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,0.25);box-shadow:0 4px 24px rgba(0,0,0,0.4);margin-bottom:-45px;z-index:10;position:relative;background:#0a1628;">
@@ -1072,9 +1070,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
     </div>
   </div>
 </div>
-
-<!-- OneDrive sync status bar -->
-<div id="odStatusBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(10,22,40,0.95);border-bottom:1px solid rgba(255,255,255,0.1);padding:6px 20px;display:none;align-items:center;justify-content:space-between;">
+<!-- OneDrive status bar -->
+<div id="odStatusBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(10,22,40,0.96);border-bottom:1px solid rgba(255,255,255,0.1);padding:5px 20px;align-items:center;justify-content:space-between;">
   <div style="display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:11px;">
     <img src="https://raw.githubusercontent.com/arme183/metarco-gruas/main/LOGO%20METARCO1.png" style="width:22px;height:22px;border-radius:50%;object-fit:cover;">
     <span style="color:#fff;letter-spacing:1px;">METARCO</span>
@@ -1839,6 +1836,7 @@ function setTraslado(metodo) {
   update();
 }
 const KM_RATE = 46;
+const ARRASTRE_RATE = { T1: 1000, T2: 1200 };
 const IVA = 0.16;
 
 // ── TOGGLE ─────────────────────────────────────────
@@ -4005,27 +4003,13 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 </div></div>
 <script>
-/* ══════════════════════════════════════════════════
-   METARCO COTIZADOR — Microsoft Auth + OneDrive Sync
-   Injected layer — original code untouched above
-══════════════════════════════════════════════════ */
-// Fix: ARRASTRE_RATE missing from original code
-const ARRASTRE_RATE = { T1: 1000, T2: 1200 };
-
-// Fix: override autoGuardarEnCarpeta to use OneDrive instead of local folder
-window.autoGuardarEnCarpeta = async function(mostrarNotif = false) {
-  odScheduleSave();
-  if (mostrarNotif && window.showNotif) showNotif('☁ Guardando en OneDrive...', 1500);
-};
-
+/* METARCO COTIZADOR — Microsoft Auth + OneDrive Sync */
 const MS_CFG = {
   clientId: '6f7f3d07-3e40-4396-8f76-36d0f818d72d',
   tenantId: '3fce0139-013b-4c64-a04d-8605a9eb8088',
-  admins:   ['a.medina@metarco.com.mx'],
   scopes:   ['Files.ReadWrite','User.Read'],
   fileCot:  'METARCO/METARCO_Cotizador_Datos.json',
-  fileDash: 'METARCO/METARCO_Control_Gruas_Datos.json',
-  redirectUri: 'https://arme183.github.io/metarco-gruas/METARCO___Cotizador_de_Gr%C3%BAs.html'
+  fileDash: 'METARCO/METARCO_Control_Gruas_Datos.json'
 };
 
 const msalCot = new msal.PublicClientApplication({
@@ -4055,8 +4039,7 @@ async function msLogin() {
 
 async function msLogout() {
   await msalCot.logoutPopup();
-  document.getElementById('msLoginOverlay').style.display = 'flex';
-  document.getElementById('odStatusBar').style.display = 'none';
+  location.reload();
 }
 
 async function msGetToken() {
@@ -4071,11 +4054,11 @@ async function msGetToken() {
   }
 }
 
-const GRAPH = 'https://graph.microsoft.com/v1.0';
+const GRAPH_C = 'https://graph.microsoft.com/v1.0';
 
 async function odRead(path) {
   const tok = await msGetToken();
-  const r = await fetch(`${GRAPH}/me/drive/root:/${path}:/content`, { headers:{ Authorization:`Bearer ${tok}` } });
+  const r = await fetch(`${GRAPH_C}/me/drive/root:/${path}:/content`, { headers:{ Authorization:`Bearer ${tok}` }});
   if (r.status === 404) return null;
   return await r.json();
 }
@@ -4083,7 +4066,7 @@ async function odRead(path) {
 async function odWrite(path, data) {
   const tok = await msGetToken();
   data._lastModified = new Date().toISOString();
-  await fetch(`${GRAPH}/me/drive/root:/${path}:/content`, {
+  await fetch(`${GRAPH_C}/me/drive/root:/${path}:/content`, {
     method: 'PUT',
     headers: { Authorization:`Bearer ${tok}`, 'Content-Type':'application/json' },
     body: JSON.stringify(data, null, 2)
@@ -4094,25 +4077,25 @@ function odSetSync(status, text) {
   const dot = document.getElementById('odSyncDot');
   const txt = document.getElementById('odSyncText');
   if (!dot || !txt) return;
-  dot.style.background = status === 'ok' ? '#22c55e' : status === 'syncing' ? '#f59e0b' : '#ef4444';
-  if (status === 'syncing') { dot.style.animation = 'none'; setTimeout(() => dot.style.animation = '', 0); }
+  dot.style.background = status==='ok'?'#22c55e':status==='syncing'?'#f59e0b':'#ef4444';
   txt.textContent = text;
 }
 
 async function odSaveAll() {
-  odSetSync('syncing', 'Guardando en OneDrive...');
+  odSetSync('syncing','Guardando en OneDrive...');
   try {
+    const HIST_KEY = 'metarco_historial_v2';
+    const CLI_KEY  = 'metarco_clientes';
     const data = {
       version: '2.0',
-      clientes: (() => { try { return JSON.parse(localStorage.getItem('metarco_clientes') || '[]'); } catch(e) { return []; } })(),
-      historial: (() => { try { return JSON.parse(localStorage.getItem('metarco_historial_v2') || '[]'); } catch(e) { return []; } })()
+      clientes: (() => { try { return JSON.parse(localStorage.getItem(CLI_KEY)||'[]'); } catch(e){ return []; }})(),
+      historial: (() => { try { return JSON.parse(localStorage.getItem(HIST_KEY)||'[]'); } catch(e){ return []; }})()
     };
     await odWrite(MS_CFG.fileCot, data);
-    odSetSync('ok', 'Guardado en OneDrive ✓');
-    setTimeout(() => odSetSync('ok', 'Sincronizado con OneDrive'), 3000);
+    odSetSync('ok','Guardado en OneDrive ✓');
+    setTimeout(()=>odSetSync('ok','Sincronizado con OneDrive'),3000);
   } catch(e) {
-    odSetSync('error', 'Error al guardar');
-    console.error('OneDrive save error:', e);
+    odSetSync('error','Error al guardar');
   }
 }
 
@@ -4121,98 +4104,71 @@ function odScheduleSave() {
   odSaveTimer = setTimeout(odSaveAll, 1500);
 }
 
+// Patch localStorage setItem to trigger OneDrive save
+const _origSetItem = localStorage.setItem.bind(localStorage);
+localStorage.setItem = function(key, value) {
+  _origSetItem(key, value);
+  if (key === 'metarco_historial_v2' || key === 'metarco_clientes') {
+    odScheduleSave();
+  }
+};
+
 async function msBootCot(account) {
-  // Hide login, show app
   document.getElementById('msLoginOverlay').style.display = 'none';
   const bar = document.getElementById('odStatusBar');
   bar.style.display = 'flex';
   document.getElementById('odUserName').textContent = account.username;
-
-  // Add top padding to body so content isn't hidden under status bar
   document.body.style.paddingTop = '36px';
 
-  odSetSync('syncing', 'Cargando desde OneDrive...');
-
+  odSetSync('syncing','Cargando desde OneDrive...');
   try {
-    // Load data from OneDrive → populate localStorage
     const data = await odRead(MS_CFG.fileCot);
     if (data) {
       if (data.clientes && data.clientes.length)
-        localStorage.setItem('metarco_clientes', JSON.stringify(data.clientes));
+        _origSetItem('metarco_clientes', JSON.stringify(data.clientes));
       if (data.historial && data.historial.length)
-        localStorage.setItem('metarco_historial_v2', JSON.stringify(data.historial));
+        _origSetItem('metarco_historial_v2', JSON.stringify(data.historial));
     }
-    odSetSync('ok', 'Sincronizado con OneDrive');
+    odSetSync('ok','Sincronizado con OneDrive');
   } catch(e) {
-    odSetSync('error', 'Sin conexión — usando datos locales');
+    odSetSync('error','Sin conexión — datos locales');
   }
-
-  // Override storage functions to also trigger OneDrive save
-  const _origHistSave = window.histSaveList;
-  window.histSaveList = function(list) {
-    if (_origHistSave) _origHistSave(list);
-    else { try { localStorage.setItem('metarco_historial_v2', JSON.stringify(list)); } catch(e) {} }
-    odScheduleSave();
-  };
-
-  const _origCliSave = window.cliSaveAll;
-  window.cliSaveAll = function(list) {
-    if (_origCliSave) _origCliSave(list);
-    else { try { localStorage.setItem('metarco_clientes', JSON.stringify(list)); } catch(e) {} }
-    odScheduleSave();
-  };
 
   // Override exportarParaDashboard to write directly to OneDrive
   window.exportarParaDashboard = async function() {
-    const histKey = 'metarco_historial_v2';
-    const list = (() => { try { return JSON.parse(localStorage.getItem(histKey) || '[]'); } catch(e) { return []; } })();
-    const ejecutados = list.filter(q => ['EJECUTADA', 'COBRADA'].includes(q.status));
-
-    if (!ejecutados.length) {
-      if (window.showNotif) showNotif('⚠ No hay cotizaciones Ejecutadas o Cobradas para exportar.', 3000);
-      return;
-    }
-
-    odSetSync('syncing', 'Exportando al Dashboard...');
+    const HIST_KEY = 'metarco_historial_v2';
+    const list = (() => { try { return JSON.parse(localStorage.getItem(HIST_KEY)||'[]'); } catch(e){ return []; }})();
+    const ejecutados = list.filter(q => ['EJECUTADA','COBRADA'].includes(q.status));
+    if (!ejecutados.length) { if(window.showNotif) showNotif('⚠ No hay cotizaciones Ejecutadas o Cobradas para exportar.',3000); return; }
+    odSetSync('syncing','Exportando al Dashboard...');
     try {
       let dashData = await odRead(MS_CFG.fileDash);
-      if (!dashData) {
-        odSetSync('error', 'No se encontró el Dashboard en OneDrive');
-        return;
-      }
-
-      const existingIds = new Set((dashData.servicios || []).map(s => s.id_cotizador));
+      if (!dashData) { odSetSync('error','No se encontró el Dashboard'); return; }
+      const existingIds = new Set((dashData.servicios||[]).map(s=>s.id_cotizador));
       let nuevos = 0;
-
       ejecutados.forEach(q => {
         if (!existingIds.has(q.id)) {
-          const partes = (q.servicio || '').split(' · ');
-          const grua = partes[0]?.trim() || 'T1';
-          const elemento = (partes[2]?.trim() || '').toUpperCase();
-          let tipo = elemento.includes('PESADO') ? 'Maniobra Pesada' : 'Maniobra Ligera';
-          if ((partes[1]?.trim() || '').toUpperCase() === 'ARRASTRE') tipo = 'Arrastre';
-
-          dashData.servicios = dashData.servicios || [];
+          const partes = (q.servicio||'').split(' · ');
+          const grua = partes[0]?.trim()||'T1';
+          const elemento = (partes[2]?.trim()||'').toUpperCase();
+          let tipo = elemento.includes('PESADO')?'Maniobra Pesada':'Maniobra Ligera';
+          if((partes[1]?.trim()||'').toUpperCase()==='ARRASTRE') tipo='Arrastre';
+          dashData.servicios = dashData.servicios||[];
           dashData.servicios.unshift({
-            id: 'cot_' + q.id,
-            id_cotizador: q.id,
-            fecha: q.savedAt ? q.savedAt.split('T')[0] : new Date().toISOString().split('T')[0],
-            grua, cliente: q.cliente || '—', tipo,
-            horas: 0, km: 0,
-            ingreso: Math.round(q.total || 0),
-            costo: 0
+            id:'cot_'+q.id, id_cotizador:q.id,
+            fecha:q.savedAt?q.savedAt.split('T')[0]:new Date().toISOString().split('T')[0],
+            grua, cliente:q.cliente||'—', tipo,
+            horas:0, km:0, ingreso:Math.round(q.total||0), costo:0
           });
           nuevos++;
         }
       });
-
       await odWrite(MS_CFG.fileDash, dashData);
-      odSetSync('ok', `${nuevos} servicio(s) exportado(s) al Dashboard ✓`);
-      setTimeout(() => odSetSync('ok', 'Sincronizado con OneDrive'), 4000);
-      if (window.showNotif) showNotif(`✓ ${nuevos} servicio(s) exportado(s) directamente al Dashboard`, 3000);
+      odSetSync('ok',`${nuevos} servicio(s) exportado(s) al Dashboard ✓`);
+      setTimeout(()=>odSetSync('ok','Sincronizado con OneDrive'),4000);
+      if(window.showNotif) showNotif(`✓ ${nuevos} servicio(s) exportado(s) al Dashboard`,3000);
     } catch(e) {
-      odSetSync('error', 'Error al exportar');
-      console.error(e);
+      odSetSync('error','Error al exportar');
     }
   };
 }
@@ -4221,9 +4177,7 @@ async function msBootCot(account) {
 (async () => {
   await msalCot.initialize();
   const accounts = msalCot.getAllAccounts();
-  if (accounts.length > 0) {
-    await msBootCot(accounts[0]);
-  }
+  if (accounts.length > 0) await msBootCot(accounts[0]);
 })();
 </script>
 
