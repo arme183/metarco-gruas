@@ -1374,18 +1374,26 @@ async function msBootDash(account) {
   try {
     const data = await odDashRead();
     if (data) {
-      // Load EXACT fields the original app expects
-      if (data.costos)  { costos  = data.costos;  lsSave(LS.c, costos);  }
-      if (data.venc)    { venc    = data.venc;     lsSave(LS.v, venc);    }
-      if (data.svcs)    { svcs    = data.svcs;     lsSave(LS.s, svcs);    }
-      if (data.mant)    { mant    = data.mant;     lsSave(LS.m, mant);    }
-      if (data.alertas) { alertas = data.alertas;  lsSave(LS.a, alertas); }
-      if (data.pagos)   { pagos   = data.pagos;    lsSave(LS.p, pagos);   }
-      if (typeof renderResumen === 'function') renderResumen();
+      // Load EXACT fields the original app expects — validate structure before assigning
+      if (data.costos && data.costos.t1 && data.costos.t2) {
+        costos = data.costos; lsSave(LS.c, costos);
+      }
+      if (data.venc   && Array.isArray(data.venc))    { venc    = data.venc;    lsSave(LS.v, venc);    }
+      if (data.svcs   && Array.isArray(data.svcs))    { svcs    = data.svcs;    lsSave(LS.s, svcs);    }
+      if (data.mant   && Array.isArray(data.mant))    { mant    = data.mant;    lsSave(LS.m, mant);    }
+      if (data.alertas && Array.isArray(data.alertas)){ alertas = data.alertas; lsSave(LS.a, alertas); }
+      if (data.pagos  && Array.isArray(data.pagos))   { pagos   = data.pagos;   lsSave(LS.p, pagos);   }
+      odDashStatus('✓ OneDrive · Datos cargados · ' + account.username.split('@')[0]);
+    } else {
+      // First time — no data in OneDrive yet, save current defaults
+      odDashStatus('☁ Primera vez — guardando datos iniciales...');
+      await odDashSaveNow();
+      odDashStatus('✓ OneDrive · Listo · ' + account.username.split('@')[0]);
     }
-    odDashStatus('✓ OneDrive · Datos cargados · ' + account.username.split('@')[0]);
+    if (typeof renderResumen === 'function') renderResumen();
   } catch(e) {
     odDashStatus('⚠ Sin conexión — usando datos locales', false);
+    if (typeof renderResumen === 'function') renderResumen();
   }
 
   // Patch lsSave to also trigger OneDrive save
