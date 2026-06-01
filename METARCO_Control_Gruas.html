@@ -1353,6 +1353,18 @@ function odDashScheduleSave() {
 async function msBootDash(account) {
   document.getElementById('msLoginOverlay').style.display = 'none';
 
+  // Clean stale data from previous version (wrong field names)
+  const pagosCheck = lsLoad(LS.p, null);
+  if (pagosCheck && pagosCheck.length > 0 && (pagosCheck[0].venc !== undefined || pagosCheck[0].period !== undefined)) {
+    // Old structure detected — reset all to defaults
+    lsSave(LS.c, DEF_COSTOS);  costos  = DEF_COSTOS;
+    lsSave(LS.p, DEF_PAGOS);   pagos   = DEF_PAGOS;
+    lsSave(LS.a, DEF_ALERTAS); alertas = DEF_ALERTAS;
+    lsSave(LS.v, DEF_VENC);    venc    = DEF_VENC;
+    lsSave(LS.s, []);           svcs    = [];
+    lsSave(LS.m, []);           mant    = [];
+  }
+
   // Update folder bar UI — repurpose for OneDrive
   const btnFolder = document.getElementById('btnFolder');
   const btnSave   = document.getElementById('btnSaveFile');
