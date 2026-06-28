@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>METARCO — Asistente Técnico</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js"></script>
+<style>
+:root{
+  --bg:#080b10;--bg2:#0d1118;--bg3:#111820;--bg4:#151e2d;
+  --blue-dk:#0d1b3e;--blue-md:#123882;--blue:#1565C0;--blue-lt:#0ea5e9;
+  --amber:#f59e0b;--green:#22c55e;--red:#ef4444;
+  --text:#e2e8f0;--dim:#94a3b8;--x:#475569;--border:#1e2d45;
+  --mono:'Share Tech Mono',monospace;--sans:'Rajdhani',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;display:flex;flex-direction:column;}
+
+/* GRID BG */
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(14,165,233,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(14,165,233,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#0d1b3e 0%,#123882 55%,#0d1b3e 100%);border-bottom:2px solid var(--blue-lt);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px;flex-shrink:0;position:relative;z-index:10;}
+.hdr-logo{font-family:var(--sans);font-weight:700;font-size:20px;letter-spacing:4px;color:#fff;}
+.hdr-logo span{color:var(--amber);}
+.hdr-sub{font-family:var(--mono);font-size:9px;color:var(--blue-lt);letter-spacing:2px;margin-top:1px;}
+.hdr-right{display:flex;align-items:center;gap:10px;}
+.hdr-badge{font-family:var(--mono);font-size:9px;padding:3px 10px;border-radius:3px;letter-spacing:1px;}
+.hdr-badge.ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:var(--green);}
+.hdr-badge.warn{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:var(--amber);}
+.icon-btn{background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--dim);padding:5px 10px;cursor:pointer;font-family:var(--mono);font-size:11px;transition:all .2s;}
+.icon-btn:hover{border-color:var(--blue-lt);color:var(--blue-lt);}
+
+/* LAYOUT */
+.app{display:flex;flex:1;overflow:hidden;position:relative;z-index:1;}
+
+/* SIDEBAR */
+.sidebar{width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.sidebar-section{padding:14px 16px;border-bottom:1px solid var(--border);}
+.sidebar-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--blue-lt);text-transform:uppercase;margin-bottom:10px;}
+
+.ref-card{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:10px;margin-bottom:8px;}
+.ref-label{font-family:var(--mono);font-size:9px;color:var(--amber);letter-spacing:1px;margin-bottom:5px;}
+.ref-row{display:flex;justify-content:space-between;padding:2px 0;font-size:12px;}
+.ref-key{color:var(--dim);font-family:var(--sans);}
+.ref-val{color:var(--text);font-family:var(--mono);font-size:11px;}
+
+.quick-btn{display:block;width:100%;text-align:left;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:8px 10px;font-family:var(--sans);font-size:12px;color:var(--dim);cursor:pointer;transition:all .2s;margin-bottom:6px;line-height:1.3;}
+.quick-btn:hover{border-color:var(--blue-lt);color:var(--text);background:rgba(14,165,233,.05);}
+.quick-icon{color:var(--blue-lt);margin-right:6px;}
+
+/* CHAT AREA */
+.chat-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
+.messages::-webkit-scrollbar{width:4px;}
+.messages::-webkit-scrollbar-track{background:transparent;}
+.messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* MESSAGES */
+.msg{display:flex;gap:10px;max-width:85%;}
+.msg.user{align-self:flex-end;flex-direction:row-reverse;}
+.msg.assistant{align-self:flex-start;}
+
+.msg-avatar{width:32px;height:32px;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:700;}
+.msg.assistant .msg-avatar{background:linear-gradient(135deg,var(--blue-dk),var(--blue-md));border:1px solid var(--blue-lt);color:var(--blue-lt);}
+.msg.user .msg-avatar{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:var(--amber);}
+
+.msg-bubble{border-radius:6px;padding:12px 14px;line-height:1.6;font-size:14px;}
+.msg.assistant .msg-bubble{background:var(--bg2);border:1px solid var(--border);color:var(--text);}
+.msg.user .msg-bubble{background:linear-gradient(135deg,var(--blue-dk),var(--blue-md));border:1px solid var(--blue-lt);color:#fff;}
+
+/* Markdown dentro de mensajes */
+.msg-bubble h1,.msg-bubble h2,.msg-bubble h3{color:var(--blue-lt);font-family:var(--sans);font-weight:700;margin:10px 0 5px;font-size:14px;letter-spacing:1px;}
+.msg-bubble p{margin-bottom:6px;}
+.msg-bubble p:last-child{margin-bottom:0;}
+.msg-bubble strong{color:white;font-weight:700;}
+.msg-bubble em{color:var(--amber);}
+.msg-bubble code{font-family:var(--mono);font-size:12px;background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.2);padding:1px 5px;border-radius:3px;color:var(--blue-lt);}
+.msg-bubble pre{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:10px;overflow-x:auto;margin:8px 0;}
+.msg-bubble pre code{background:none;border:none;padding:0;color:var(--text);}
+.msg-bubble ul,.msg-bubble ol{padding-left:18px;margin:5px 0;}
+.msg-bubble li{margin-bottom:3px;}
+.msg-bubble table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px;}
+.msg-bubble th{background:var(--blue-dk);color:var(--blue-lt);font-family:var(--mono);font-size:10px;padding:5px 8px;text-align:left;border:1px solid var(--border);}
+.msg-bubble td{padding:5px 8px;border:1px solid var(--border);color:var(--dim);}
+.msg-bubble tr:nth-child(even) td{background:rgba(14,165,233,.03);}
+.msg-bubble hr{border:none;border-top:1px solid var(--border);margin:10px 0;}
+.msg-bubble blockquote{border-left:3px solid var(--blue-lt);padding-left:10px;color:var(--dim);margin:6px 0;}
+
+/* TYPING */
+.typing-bubble{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;display:flex;gap:5px;align-items:center;}
+.typing-dot{width:6px;height:6px;border-radius:50%;background:var(--blue-lt);animation:typingAnim 1.2s infinite;}
+.typing-dot:nth-child(2){animation-delay:.2s;}
+.typing-dot:nth-child(3){animation-delay:.4s;}
+@keyframes typingAnim{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
+
+/* EMPTY STATE */
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;text-align:center;}
+.empty-logo{font-family:var(--sans);font-weight:700;font-size:48px;letter-spacing:8px;color:rgba(255,255,255,.05);}
+.empty-logo span{color:rgba(245,158,11,.1);}
+.empty-title{font-family:var(--mono);font-size:12px;letter-spacing:2px;color:var(--x);}
+
+/* INPUT AREA */
+.input-wrap{padding:16px 20px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0;}
+.input-row{display:flex;gap:10px;align-items:flex-end;}
+.input-box{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-family:var(--sans);font-size:14px;resize:none;min-height:44px;max-height:120px;line-height:1.5;transition:border-color .2s;}
+.input-box:focus{outline:none;border-color:var(--blue-lt);}
+.input-box::placeholder{color:var(--x);}
+.send-btn{background:var(--blue);color:#fff;border:none;border-radius:6px;padding:10px 18px;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:13px;letter-spacing:1px;transition:all .2s;height:44px;flex-shrink:0;}
+.send-btn:hover{background:var(--blue-lt);}
+.send-btn:disabled{background:var(--x);cursor:not-allowed;opacity:.6;}
+.input-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+.input-hint{font-family:var(--mono);font-size:10px;color:var(--x);}
+.clear-btn{background:transparent;border:none;color:var(--x);font-family:var(--mono);font-size:10px;cursor:pointer;letter-spacing:.5px;transition:color .2s;}
+.clear-btn:hover{color:var(--red);}
+
+/* SETUP SCREEN */
+.setup-overlay{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
+.setup-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:32px;width:480px;max-width:100%;}
+.setup-logo{font-family:var(--sans);font-weight:700;font-size:28px;letter-spacing:5px;color:#fff;margin-bottom:4px;}
+.setup-logo span{color:var(--amber);}
+.setup-sub{font-family:var(--mono);font-size:10px;color:var(--blue-lt);letter-spacing:2px;margin-bottom:24px;}
+.setup-title{font-family:var(--sans);font-weight:700;font-size:16px;color:var(--text);margin-bottom:6px;}
+.setup-body{font-family:var(--sans);font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:20px;}
+.setup-body a{color:var(--blue-lt);}
+.setup-label{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--x);text-transform:uppercase;display:block;margin-bottom:6px;}
+.setup-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:10px 14px;color:var(--text);font-family:var(--mono);font-size:13px;margin-bottom:14px;transition:border-color .2s;}
+.setup-input:focus{outline:none;border-color:var(--blue-lt);}
+.setup-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:5px;padding:12px;font-family:var(--sans);font-weight:700;font-size:14px;letter-spacing:1px;cursor:pointer;transition:all .2s;}
+.setup-btn:hover{background:var(--blue-lt);}
+.setup-note{font-family:var(--mono);font-size:10px;color:var(--x);margin-top:12px;text-align:center;}
+.setup-err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--red);margin-bottom:12px;display:none;}
+
+/* SETTINGS MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;justify-content:center;align-items:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:24px;width:420px;max-width:95vw;}
+.modal-title{font-family:var(--sans);font-weight:700;font-size:14px;letter-spacing:2px;color:var(--blue-lt);margin-bottom:16px;text-transform:uppercase;}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.btn-ghost{background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--dim);padding:7px 16px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;letter-spacing:1px;transition:all .2s;}
+.btn-ghost:hover{border-color:var(--blue-lt);color:var(--blue-lt);}
+.btn-primary{background:var(--blue);color:#fff;border:none;border-radius:4px;padding:7px 16px;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all .2s;}
+.btn-primary:hover{background:var(--blue-lt);}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;z-index:200;background:var(--blue);color:#fff;padding:10px 18px;border-radius:5px;font-family:var(--mono);font-size:11px;letter-spacing:.8px;animation:slideUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* SCROLLBAR */
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);}
+
+@media(max-width:700px){.sidebar{display:none;}.msg{max-width:95%;}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN MICROSOFT -->
+<div id="msLoginOverlay" style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 80%,#1a3d6b 0%,#0a1628 70%);">
+  <div style="display:flex;flex-direction:column;align-items:center;">
+    <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,0.25);box-shadow:0 4px 24px rgba(0,0,0,0.4);margin-bottom:-45px;z-index:10;position:relative;background:#0a1628;">
+      <img src="https://raw.githubusercontent.com/arme183/metarco-gruas/main/LOGO%20METARCO1.png" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
+    </div>
+    <div style="background:#f0f4f8;border-radius:20px;padding:60px 48px 36px;width:100%;max-width:520px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.35);">
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:28px;letter-spacing:5px;color:#0d1b3e;margin-bottom:4px;">METARCO</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:#64748b;margin-bottom:6px;">ASISTENTE TÉCNICO · GRÚAS</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:#0ea5e9;margin-bottom:24px;">T1 · T2 · MANIOBRAS · MANTENIMIENTO</div>
+      <div style="font-weight:700;font-size:16px;color:#0d1b3e;margin-bottom:6px;">Acceso restringido</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:28px;">Solo disponible para usuarios METARCO.</div>
+      <button id="msLoginBtn" onclick="msAsstLogin()" style="width:100%;padding:15px 24px;background:#0d1b3e;color:#fff;border:none;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;" onmouseover="this.style.background='#1a3d6b'" onmouseout="this.style.background='#0d1b3e'">
+        <svg width="20" height="20" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+        Iniciar sesión con Microsoft
+      </button>
+      <div id="msLoginError" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:9px;font-size:12px;color:#ef4444;text-align:left;"></div>
+    </div>
+    <div style="margin-top:24px;display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.5);">
+      <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+      Asistente activo · METARCO 2026
+    </div>
+  </div>
+</div>
+
+<!-- SETUP SCREEN (oculto — ya no se usa, se conserva para compatibilidad) -->
+<div class="setup-overlay" id="setupScreen" style="display:none;">
+  <div class="setup-card">
+    <div class="setup-logo">META<span>R</span>CO</div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-title">⚙️ Configuración</div>
+    <label class="setup-label" style="margin-bottom:6px;">API Key de Anthropic</label>
+    <input type="password" class="setup-input" id="settingsKey" placeholder="sk-ant-api03-..." style="margin-bottom:0;">
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeSettings()">CANCELAR</button>
+      <button class="btn-primary" onclick="saveSettings()">GUARDAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div>
+    <div class="hdr-logo">META<span>R</span>CO</div>
+    <div class="hdr-sub">ASISTENTE TÉCNICO · DEPARTAMENTO DE GRÚAS</div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-badge warn" id="statusBadge">SIN CONECTAR</div>
+    <button class="icon-btn" onclick="openSettings()">⚙ CONFIGURAR</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Tarifas de referencia</div>
+      <div class="ref-card">
+        <div class="ref-label">T1 · 14 ton</div>
+        <div class="ref-row"><span class="ref-key">Ligero</span><span class="ref-val">$1,000/hr</span></div>
+        <div class="ref-row"><span class="ref-key">Pesado</span><span class="ref-val">$1,200/hr</span></div>
+        <div class="ref-row"><span class="ref-key">Arrastre</span><span class="ref-val">$1,000/hr</span></div>
+      </div>
+      <div class="ref-card">
+        <div class="ref-label">T2 · 23 ton</div>
+        <div class="ref-row"><span class="ref-key">Ligero</span><span class="ref-val">$1,250/hr</span></div>
+        <div class="ref-row"><span class="ref-key">Pesado</span><span class="ref-val">$1,400/hr</span></div>
+        <div class="ref-row"><span class="ref-key">Arrastre</span><span class="ref-val">$1,200/hr</span></div>
+      </div>
+      <div class="ref-card">
+        <div class="ref-label">General</div>
+        <div class="ref-row"><span class="ref-key">Km</span><span class="ref-val">$46/km</span></div>
+        <div class="ref-row"><span class="ref-key">Maniobristras</span><span class="ref-val">$600/día</span></div>
+        <div class="ref-row"><span class="ref-key">Mín. cobro</span><span class="ref-val">3 hrs</span></div>
+        <div class="ref-row"><span class="ref-key">Anticipo</span><span class="ref-val">50%</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Acciones rápidas</div>
+      <button class="quick-btn" onclick="quickAsk('¿Qué grúa mando para este servicio? ')"><span class="quick-icon">🏗</span>Seleccionar grúa</button>
+      <button class="quick-btn" onclick="quickAsk('¿Es viable este izaje? ')"><span class="quick-icon">📐</span>Verificar viabilidad</button>
+      <button class="quick-btn" onclick="quickAsk('¿Cómo cotizo este servicio? ')"><span class="quick-icon">💰</span>Cotización rápida</button>
+      <button class="quick-btn" onclick="quickAsk('Tengo una falla en la ')"><span class="quick-icon">🔧</span>Diagnóstico de falla</button>
+      <button class="quick-btn" onclick="quickAsk('¿Qué le pregunto al cliente para cotizar este servicio?')"><span class="quick-icon">❓</span>Qué preguntar al cliente</button>
+      <button class="quick-btn" onclick="quickAsk('¿Qué accesorios necesito para esta maniobra? ')"><span class="quick-icon">⚙️</span>Accesorios necesarios</button>
+      <button class="quick-btn" onclick="quickAsk('¿Qué factores encarecen este servicio? ')"><span class="quick-icon">📋</span>Factores de costo</button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Load chart T2 rápido</div>
+      <div class="ref-card">
+        <div class="ref-label">BT4792 · Radio 3m</div>
+        <div class="ref-row"><span class="ref-key">Pluma 8.8m</span><span class="ref-val">14.2 t</span></div>
+        <div class="ref-row"><span class="ref-key">Pluma 13.4m</span><span class="ref-val">9.2 t</span></div>
+        <div class="ref-row"><span class="ref-key">Pluma 17.4m</span><span class="ref-val">8.3 t</span></div>
+        <div class="ref-row"><span class="ref-key">Pluma 28m</span><span class="ref-val">4.1 t</span></div>
+      </div>
+      <div class="ref-card">
+        <div class="ref-label">BT4792 · Radio 6m</div>
+        <div class="ref-row"><span class="ref-key">Pluma 8.8m</span><span class="ref-val">6.6 t</span></div>
+        <div class="ref-row"><span class="ref-key">Pluma 13.4m</span><span class="ref-val">6.4 t</span></div>
+        <div class="ref-row"><span class="ref-key">Pluma 17.4m</span><span class="ref-val">6.2 t</span></div>
+        <div class="ref-row"><span class="ref-key">Pluma 28m</span><span class="ref-val">2.9 t</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat-wrap">
+    <div class="messages" id="messages">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-logo">META<span>R</span>CO</div>
+        <div class="empty-title">ASISTENTE TÉCNICO · LISTO PARA CONSULTAS</div>
+      </div>
+    </div>
+
+    <div class="input-wrap">
+      <div class="input-row">
+        <textarea class="input-box" id="inputBox" placeholder="Describe la maniobra, pregunta sobre equipos o consulta una falla..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">ENVIAR</button>
+      </div>
+      <div class="input-meta">
+        <span class="input-hint">Enter para enviar · Shift+Enter para salto de línea</span>
+        <button class="clear-btn" onclick="clearChat()">✕ Limpiar conversación</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  SISTEMA DE CONOCIMIENTO METARCO
+// ══════════════════════════════════════════════════════════════════
+const SYSTEM_PROMPT = `Eres el asistente técnico y operativo del Departamento de Grúas de METARCO S.A. de C.V., ubicada en Querétaro, México.
+
+Tu función es ayudar al equipo de METARCO a:
+- Evaluar la viabilidad técnica de maniobras antes de cotizar
+- Decidir qué grúa asignar y en qué configuración
+- Diagnosticar fallas en los equipos T1 y T2
+- Responder preguntas técnicas sobre los camiones y grúas
+- Aplicar las reglas de negocio internas de METARCO al cotizar
+
+Respondes de forma directa, concisa y con criterio técnico real. Cuando faltan datos para evaluar una maniobra, preguntas específicamente qué necesitas. Nunca inventas capacidades — te basas siempre en los load charts documentados. Usas tablas y formato claro cuando es útil.
+
+━━━ EMPRESA ━━━
+METARCO S.A. de C.V. · RFC: MET2001285G8
+Querétaro, Qro. · Cerro de la Bufa 103, Col. Colinas del Cimatario, CP 76090
+Tel: 442 669 6143 · contabilidad@metarco.com.mx · a.medina@metarco.com.mx
+Bancos: BANREGIO 166972290012 / CLABE 058680000005178600 · BBVA 0122979993 / CLABE 012680001229799936
+
+━━━ EQUIPOS ━━━
+
+T1 — 14 TONELADAS
+- Camión: International Navistar 8175 (1998) · VIN: 1HTSCABP8WH552424
+- Motor: Navistar T444E · V8 · 7.3L (444 ci) · 190HP · Sistema HEUI (hydraulic-electronic unit injectors)
+- Grúa: TEREX TC2863 · Serie 45903981685 · Certificación DIAL-1054/23
+- Pluma: 14.3m telescópica (3 secciones)
+- Accesorios disponibles: Bola rápida (cap. máx 4,355 kg · 1 ramal), Aguilón 6m
+- Altura máx sin aguilón: 22.2m · Con aguilón 6m: ~24m (verificado en campo · Estadio Corregidora) · Radio máx: 18.7m
+- NOTA: el fabricante reporta 34.4m con aguilón — ese dato es para aguilón 40ft (12.2m) que METARCO NO tiene. Dato correcto: ~24m.
+- Color: Blanco y Azul
+
+T2 — 23 TONELADAS
+- Camión: Peterbilt 330 (2003) · VIN: 2N9NLZ0X03M569848
+- Motor: Cummins ISC 8.3L · Inline 6 · 504 ci · 260-300HP · Turbo VGT (geometría variable)
+- Grúa: TEREX RO BT4792 · Serie 49005021562
+- Pluma: 28.0m telescópica (4 secciones)
+- Accesorios disponibles: Bola rápida (4,762 kg · 1 ramal), Gancho doble 2 ramales (9,525 kg), Aguilón 6m
+- Altura máx con pluma sola (sin jib): ~30.8m · Radio máx: ver load chart
+- CONFIGURACIÓN REAL: METARCO opera con aguilón de 6m — NO tiene el jib de 26/44ft del fabricante. La altura de 43.9m (144ft) que reporta la datasheet NO aplica a esta unidad.
+- Ganchos reales: bola rápida 4,762 kg (1 ramal) · gancho doble 9,525 kg (2 ramales) — distintos a los ganchos estándar de fábrica (7t / 17.5t)
+- Color: Blanco y Rojo
+
+━━━ TARIFAS ━━━
+
+Servicio de grúa:
+- T1 Ligero: $1,000/hr · T1 Pesado: $1,200/hr
+- T2 Ligero: $1,250/hr · T2 Pesado: $1,400/hr
+
+Arrastre y traslado:
+- T1: $1,000/hr · T2: $1,200/hr
+- Kilómetros: $46/km
+- REGLA CRÍTICA: cobrar por horas de arrastre O por kilómetros — NUNCA AMBOS. Son el mismo concepto expresado diferente.
+
+Maniobristras: $600 × cantidad de personas × días de servicio
+
+Períodos (multiplicador sobre tarifa base):
+- Hora: ×1.0 · Día: ×0.9 · Semana: ×0.8 · Mes: ×0.7
+
+Documentación (% adicional sobre subtotal):
+- Básico: sin cargo · Medios: +15% · Especial: +30%
+
+IVA: 16% sobre subtotal
+
+━━━ CEREBRO OPERATIVO — CRITERIOS INTERNOS ━━━
+
+**SELECCIÓN DE GRÚA — lógica de decisión:**
+1. Primero evaluar CAPACIDAD: ¿puede hacerlo la T1 (Titán ligero)?
+2. Si T1 puede → va T1 (más económica y ágil)
+3. Si T1 no puede por capacidad → va T2
+4. Si ambas pueden → decide DISPONIBILIDAD (cuál está libre)
+5. Plantas industriales con filtro médico de acceso → T2 AUTOMÁTICO (el operador de T1 tiene hipertensión controlada; algunas plantas no lo aceptan)
+6. T1 tiene el limit switch pendiente de reparar — no ha frenado operación, no es crítico actualmente
+7. T2 cumple TODAS las certificaciones y requisitos industriales sin ninguna restricción
+
+**REGLA LIGERO vs PESADO:**
+- Más de 3 toneladas → tarifa PESADA
+- Tanques, contenedores, elementos de gran volumen/tamaño → PESADO independiente del peso
+- Estructura metálica, lámina, equipos HVAC (bajo 3t) → LIGERO
+- Maniobras especiales (dos grúas simultáneas, columnas, etc.) → cotización caso por caso, no aplica tarifa estándar
+
+**SECUENCIA DE PREGUNTAS AL CLIENTE (en este orden):**
+1. ¿Qué tipo de maniobra? (izaje, elevación, flete con carga/descarga, maniobra especial)
+2. ¿Peso, altura y dimensiones de la carga? → sin esto NO se puede cotizar responsablemente
+3. ¿Dónde es el servicio? (¿sale de Querétaro? → arrastre extra)
+4. ¿Por cuánto tiempo la necesitan? (hora, día, semana, mes)
+5. ¿Para cuándo la requieren? (disponibilidad y agenda del operador)
+
+**FACTORES QUE ENCARECEN UN SERVICIO:**
+- Documentación de acceso a planta (permisos, tarjetas, trámites)
+- Curso de seguridad el día previo → se cobra ese día como día de operador
+- Seguro de responsabilidad civil específico exigido por la planta
+- Eslingas y bandas nuevas sin uso → el costo del material se traslada al cliente
+- Horario nocturno → incremento sobre tarifa base
+- Fin de semana → incremento sobre tarifa base
+- Fuera del estado de Querétaro → arrastre (horas O km, nunca ambos)
+
+**REGLAS DE NEGOCIO — NO SE NEGOCIAN:**
+- Tarifa mínima: 3 HORAS (2 horas de arrastre + 1 hora de trabajo)
+- Anticipo obligatorio: 50% ANTES de salir al servicio — el 50% restante al término
+- Arrastre foráneo: cobrar por HORAS o por KILÓMETROS — jamás los dos juntos (es el mismo concepto)
+- Preferencia operativa: mantenerse dentro del estado de Querétaro
+- Accesorios disponibles HOY: canastilla (elevación de personal) y balancín (montajes complejos)
+- Siempre verificar si el cliente requiere accesorios especiales al cotizar
+
+━━━ LOAD CHARTS ━━━
+
+**T1 — TEREX TC2863 (estabilizadores extendidos):**
+| Radio operación | Capacidad máx |
+|---|---|
+| 1.5 m | 13,063 kg (28,800 lbs) |
+| 3.0 m | 6,441 kg (14,200 lbs) |
+| 3.7 m | 5,534 kg (12,200 lbs) |
+| 4.6 m | 4,581 kg (10,100 lbs) |
+| 6.1 m | 3,368 kg (7,425 lbs) |
+| Radio máx | 18.7 m |
+| Altura máx sin aguilón | 22.2 m |
+| Altura máx sin aguilón | 22.2 m |
+| Altura máx con aguilón 6m | ~24 m ← DATO VERIFICADO EN CAMPO (Estadio Corregidora) |
+| Nota aguilón fabricante | 34.4m = aguilón 40ft (12.2m) — METARCO NO tiene ese aguilón |
+LÍMITE REAL: bola rápida limita a 4,355 kg independiente del boom
+
+**T2 — TEREX BT4792 (estabilizadores extendidos, toneladas métricas):**
+| Radio | 8.8m | 13.4m | 17.4m | 21.6m | 25.6m | 28.0m |
+|---|---|---|---|---|---|---|
+| 1.5 m | 21.31 t | — | — | — | — | — |
+| 3.0 m | 14.22 t | 9.20 t | 8.34 t | 6.48 t | 4.99 t | 4.12 t |
+| 4.5 m | 9.39 t | 8.43 t | 7.46 t | 5.63 t | 4.48 t | 3.43 t |
+| 6.0 m | 6.60 t | 6.42 t | 6.16 t | 4.78 t | 3.79 t | 2.92 t |
+| 7.5 m | 4.85 t | 5.05 t | 4.90 t | 3.90 t | 3.12 t | 2.50 t |
+| 9.0 m | — | 4.00 t | 3.99 t | 3.21 t | 2.61 t | 2.14 t |
+| 12.0 m | — | 2.46 t | 2.62 t | 2.16 t | 1.75 t | 1.42 t |
+| 15.0 m | — | — | 1.75 t | 1.42 t | 1.15 t | 0.95 t |
+| 18.0 m | — | — | — | 0.95 t | 0.74 t | 0.58 t |
+| 21.0 m | — | — | — | — | 0.41 t | 0.33 t |
+LÍMITES REALES: bola rápida máx 4,762 kg · gancho doble máx 9,525 kg (2 ramales)
+Aunque el boom tenga más capacidad, el gancho es siempre el cuello de botella
+
+━━━ INFORMACIÓN TÉCNICA CLAVE ━━━
+
+**T1 — Motor Navistar T444E 7.3L:**
+- Aceite motor: 15W-40 API CK-4 · 17-19L con filtro · cambiar cada 250hrs o 8,000km
+- Marcas: Shell Rotella T6, Mobil Delvac, Valvoline Premium Blue
+- CRÍTICO: el T444E usa aceite del motor para activar los inyectores (sistema HEUI) — aceite sucio = falla de inyección directa
+- Filtros: Fleetguard LF3630 (aceite), FF5418 (combustible), FS19624 (separador agua)
+- Refrigerante: ASTM D3306 50/50 agua destilada · cambiar cada 2 años
+- Aceite hidráulico grúa: ISO VG 46 · cambiar cada 1,000hrs
+- Fallas comunes por frecuencia:
+  1. HPOP (bomba alta presión aceite) — ALTA: motor no arranca o sin potencia, humo negro
+  2. IPR (regulador presión inyección) — ALTA: código 333, limpiar antes de reemplazar
+  3. ICP Sensor (sensor presión inyección) — MEDIA: lecturas falsas, fácil y barato
+  4. CMP Sensor (posición árbol de levas) — MEDIA: apagados intermitentes, código 211, usar Navistar no Ford
+  5. Arnés bajo tapa de válvulas — MEDIA: traqueteo, pérdida de cilindro
+  6. Retén trasero / tapa delantera — BAJA: fugas aceite con el tiempo
+  7. Coquización turbo — BAJA: dejar ralentí 2-3 min antes de apagar
+- **Regla de oro T444E: aceite API CK-4 limpio previene el 80% de las fallas graves**
+
+**T2 — Motor Cummins ISC 8.3L:**
+- Aceite motor: 15W-40 API CK-4 Cummins CES20086 · 23.8L · cambiar cada 500hrs o 15,000km
+- NO usar: aceites API FA-4 — Cummins los desaconseja para el ISC
+- Refrigerante: Fleetcharge o equivalente ASTM D6210 con SCA/DCA
+- Aceite diferencial: SAE 80W-90 o 85W-140 GL-5 · cada 40,000km
+- Aceite hidráulico grúa: ISO VG 46 · cada 1,000hrs
+- Fallas comunes por frecuencia:
+  1. Cavitación en liners — ALTA: la falla MÁS CARA y MÁS EVITABLE — prevenir con SCA/DCA correcto
+  2. Turbo VGT — MEDIA: alabes atascados con carbón, pérdida de boost
+  3. Inyectores CAPS — MEDIA: desequilibrio, humo negro, consumo elevado
+  4. Sistema DPF — MEDIA: requiere limpiezas programadas, un inyector malo lo mata
+  5. Fugas retén trasero — MEDIA: se confunde con fuga de tapa de válvulas
+  6. Bomba de agua — BAJA: vibración previa, inspeccionar cada 500hrs
+- **Regla de oro ISC: SCA/DCA en concentración correcta es la diferencia entre $500 de aditivo o $15,000+ de reparación**
+
+**Grúas TEREX (aplica a T1 y T2):**
+- Aceite hidráulico: ISO VG 46 · cambiar cada 1,000hrs · drenar y limpiar depósito
+- Fallas comunes:
+  1. Relé aislador batería 80A (barra de bus) — si hidráulico no responde, revisar esto primero
+  2. Control box — falla por humedad, revisar fusibles y conectores antes de reemplazar la caja
+  3. Extensión pluma inconsistente — válvula de control obstruida o aceite contaminado
+  4. Cable de acero winch — inspeccionar ANTES de cada servicio; rechazar si >6 alambres rotos en un torón, kinks o corrosión severa
+  5. Cilindros hidráulicos — sellos se endurecen, pluma baja sola bajo carga
+  6. Estabilizadores lentos — revisar nivel hidráulico y solenoides; en frío calentar motor primero
+
+━━━ INSTRUCCIONES DE RESPUESTA ━━━
+- Cuando evalúes una maniobra, siempre verifica el load chart antes de confirmar viabilidad
+- Si la carga supera la capacidad del gancho disponible, señálalo aunque el boom aguante más
+- Para servicios en plantas industriales con filtro médico, recomienda T2 automáticamente
+- Al cotizar, recuerda: arrastre por HORAS o por KM, nunca los dos
+- Si te falta el radio de operación o la altura de izaje, pídelos — sin esos datos no puedes verificar el load chart
+- Cuando un colaborador describe una falla, sigue la lógica: primero lo más simple (sensores, fusibles, relés) antes de asumir falla mayor
+- Sé directo. Si la maniobra no es viable con el equipo disponible, dilo claramente y explica por qué.`;
+
+// ══════════════════════════════════════════════════════════════════
+//  ESTADO
+// ══════════════════════════════════════════════════════════════════
+let apiKey = localStorage.getItem('mx_asistente_key') || '';
+let history = []; // {role, content}
+let isLoading = false;
+
+// ══════════════════════════════════════════════════════════════════
+//  SETUP & SETTINGS
+// ══════════════════════════════════════════════════════════════════
+async function validateKey() {
+  const key = document.getElementById('setupKey').value.trim();
+  const err = document.getElementById('setupErr');
+  if (!key.startsWith('sk-ant')) { err.style.display='block'; err.textContent='La key debe comenzar con sk-ant'; return; }
+  err.style.display = 'none';
+  const btn = document.querySelector('.setup-btn');
+  btn.textContent = 'VERIFICANDO...'; btn.disabled = true;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:10, messages:[{role:'user',content:'Hi'}] })
+    });
+    if (res.ok || res.status === 400) {
+      apiKey = key;
+      localStorage.setItem('mx_asistente_key', key);
+      document.getElementById('setupScreen').style.display = 'none';
+      updateStatus(true);
+      toast('Conectado correctamente ✓');
+    } else {
+      err.style.display = 'block';
+      err.textContent = `Error ${res.status}: API Key inválida o sin crédito`;
+    }
+  } catch(e) {
+    err.style.display = 'block';
+    err.textContent = 'Error de conexión. Verifica tu internet.';
+  }
+  btn.textContent = 'CONECTAR Y CONTINUAR'; btn.disabled = false;
+}
+
+function openSettings() {
+  document.getElementById('settingsKey').value = apiKey ? '••••••••••••••' : '';
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+function saveSettings() {
+  const v = document.getElementById('settingsKey').value.trim();
+  if (v && !v.startsWith('•')) {
+    apiKey = v;
+    localStorage.setItem('mx_asistente_key', v);
+    toast('API Key actualizada ✓');
+  }
+  closeSettings();
+}
+
+function updateStatus(ok) {
+  const b = document.getElementById('statusBadge');
+  b.textContent = ok ? 'CONECTADO' : 'SIN CONECTAR';
+  b.className = 'hdr-badge ' + (ok ? 'ok' : 'warn');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  CHAT
+// ══════════════════════════════════════════════════════════════════
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function quickAsk(text) {
+  const box = document.getElementById('inputBox');
+  box.value = text;
+  box.focus();
+  autoResize(box);
+}
+
+async function sendMessage() {
+  if (isLoading) return;
+  const box = document.getElementById('inputBox');
+  const text = box.value.trim();
+  if (!text) return;
+  if (!apiKey) { toast('Configura tu API Key primero', 'err'); return; }
+
+  box.value = '';
+  box.style.height = 'auto';
+  isLoading = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  // Ocultar empty state
+  document.getElementById('emptyState').style.display = 'none';
+
+  // Agregar mensaje usuario
+  addMessage('user', text);
+  history.push({ role: 'user', content: text });
+
+  // Typing indicator
+  const typingId = 'typing_' + Date.now();
+  addTyping(typingId);
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: SYSTEM_PROMPT,
+        stream: true,
+        messages: history,
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      removeTyping(typingId);
+      addMessage('assistant', `⚠ Error ${response.status}: ${err.error?.message || 'Error de API'}`);
+      isLoading = false;
+      document.getElementById('sendBtn').disabled = false;
+      return;
+    }
+
+    // Streaming
+    removeTyping(typingId);
+    const msgId = 'msg_' + Date.now();
+    addStreamingMessage(msgId);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              fullText += parsed.delta.text;
+              updateStreamingMessage(msgId, fullText);
+            }
+          } catch {}
+        }
+      }
+    }
+
+    history.push({ role: 'assistant', content: fullText });
+
+  } catch(e) {
+    removeTyping(typingId);
+    addMessage('assistant', '⚠ Error de conexión. Verifica tu internet y la API Key.');
+    console.error(e);
+  }
+
+  isLoading = false;
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('inputBox').focus();
+}
+
+// ── DOM helpers ──────────────────────────────────────────────────
+function addMessage(role, text) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const avatar = role === 'user' ? 'TÚ' : 'MR';
+  div.innerHTML = `
+    <div class="msg-avatar">${avatar}</div>
+    <div class="msg-bubble">${role === 'assistant' ? renderMd(text) : escHtml(text)}</div>`;
+  msgs.appendChild(div);
+  scrollToBottom();
+}
+
+function addTyping(id) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.id = id;
+  div.innerHTML = `<div class="msg-avatar">MR</div><div class="typing-bubble"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  msgs.appendChild(div);
+  scrollToBottom();
+}
+
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function addStreamingMessage(id) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.id = id;
+  div.innerHTML = `<div class="msg-avatar">MR</div><div class="msg-bubble" id="${id}_bubble"></div>`;
+  msgs.appendChild(div);
+  scrollToBottom();
+}
+
+function updateStreamingMessage(id, text) {
+  const bubble = document.getElementById(id + '_bubble');
+  if (bubble) { bubble.innerHTML = renderMd(text); scrollToBottom(); }
+}
+
+function scrollToBottom() {
+  const msgs = document.getElementById('messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function renderMd(text) {
+  if (typeof marked !== 'undefined') {
+    marked.setOptions({ breaks: true, gfm: true });
+    return marked.parse(text);
+  }
+  return escHtml(text).replace(/\n/g,'<br>');
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function clearChat() {
+  if (!confirm('¿Limpiar la conversación?')) return;
+  history = [];
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '<div class="empty-state" id="emptyState"><div class="empty-logo">META<span>R</span>CO</div><div class="empty-title">ASISTENTE TÉCNICO · LISTO PARA CONSULTAS</div></div>';
+}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function toast(msg, type='ok') {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.background = type === 'err' ? 'var(--red)' : 'var(--blue)';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+//  MICROSOFT AUTH — igual que Cotizador y Dashboard
+// ══════════════════════════════════════════════════════════════════
+const MS_ASST = {
+  clientId: '6f7f3d07-3e40-4396-8f76-36d0f818d72d',
+  tenantId: '3fce0139-013b-4c64-a04d-8605a9eb8088',
+  scopes:   ['User.Read'],
+  // API key de Anthropic — hardcodeada para acceso de equipo
+  // No visible en la UI; el archivo solo debe compartirse con @metarco.com.mx
+  _k: localStorage.getItem('mx_asistente_key') || ''
+};
+
+const msalAsst = new msal.PublicClientApplication({
+  auth: {
+    clientId: MS_ASST.clientId,
+    authority: `https://login.microsoftonline.com/${MS_ASST.tenantId}`,
+    redirectUri: 'https://arme183.github.io/metarco-gruas/METARCO_Asistente.html',
+    navigateToLoginRequestUrl: false
+  },
+  cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+});
+
+async function msAsstLogin() {
+  document.getElementById('msLoginBtn').textContent = 'Conectando...';
+  try {
+    const r = await msalAsst.loginPopup({ scopes: MS_ASST.scopes, prompt: 'select_account' });
+    await msBootAsst(r.account);
+  } catch(e) {
+    const el = document.getElementById('msLoginError');
+    el.textContent = 'No se pudo iniciar sesión. Usa tu cuenta @metarco.com.mx.';
+    el.style.display = 'block';
+    document.getElementById('msLoginBtn').textContent = 'Iniciar sesión con Microsoft';
+  }
+}
+
+async function msBootAsst(account) {
+  // Solo permitir cuentas @metarco.com.mx
+  if (!account.username.endsWith('@metarco.com.mx')) {
+    document.getElementById('msLoginError').textContent = 'Acceso solo para cuentas @metarco.com.mx';
+    document.getElementById('msLoginError').style.display = 'block';
+    document.getElementById('msLoginBtn').textContent = 'Iniciar sesión con Microsoft';
+    await msalAsst.logoutPopup({ onRedirectNavigate: false });
+    return;
+  }
+
+  // Ocultar login, mostrar app
+  document.getElementById('msLoginOverlay').style.display = 'none';
+  document.getElementById('setupScreen').style.display = 'none';
+
+  // Mostrar usuario en header
+  const hdrRight = document.querySelector('.hdr-right');
+  if (hdrRight && !document.getElementById('msUserBadge')) {
+    const badge = document.createElement('span');
+    badge.id = 'msUserBadge';
+    badge.style.cssText = 'font-family:var(--mono);font-size:10px;color:var(--dim);margin-right:6px;';
+    badge.textContent = account.username.split('@')[0].toUpperCase();
+    hdrRight.insertBefore(badge, hdrRight.firstChild);
+    // Botón salir
+    const logoutBtn = document.createElement('button');
+    logoutBtn.className = 'icon-btn';
+    logoutBtn.textContent = '⎋ SALIR';
+    logoutBtn.onclick = async () => { await msalAsst.logoutPopup(); location.reload(); };
+    hdrRight.appendChild(logoutBtn);
+  }
+
+  // Activar el asistente con la key guardada
+  updateStatus(!!apiKey);
+  if (!apiKey) {
+    // Si no hay key guardada, mostrar modal de configuración
+    setTimeout(() => openSettings(), 500);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════════
+(async () => {
+  await msalAsst.initialize();
+  const accounts = msalAsst.getAllAccounts();
+  if (accounts.length > 0) {
+    await msBootAsst(accounts[0]);
+  }
+  // Si ya tiene key y ya está logueado, listo
+  // Si no está logueado, el overlay de Microsoft se muestra (default)
+})();
+
+// Close settings on overlay click
+document.getElementById('settingsModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSettings();
+});
+</script>
+</body>
+</html>
