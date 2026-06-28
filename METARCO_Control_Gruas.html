@@ -1254,11 +1254,15 @@ document.getElementById('hdrDate').textContent=HOY.toLocaleDateString('es-MX',{w
 /* METARCO DASHBOARD — Microsoft Auth + OneDrive Sync
    Uses EXACT same data structure as original app */
 const MS_DASH = {
-  clientId: '6f7f3d07-3e40-4396-8f76-36d0f818d72d',
-  tenantId: '3fce0139-013b-4c64-a04d-8605a9eb8088',
-  scopes:   ['Files.ReadWrite','User.Read'],
-  // Separate file that uses original Dashboard data structure
-  filePath: 'METARCO/METARCO_Dashboard_Datos.json'
+  clientId:  '6f7f3d07-3e40-4396-8f76-36d0f818d72d',
+  tenantId:  '3fce0139-013b-4c64-a04d-8605a9eb8088',
+  scopes:    ['Files.ReadWrite','User.Read','Sites.ReadWrite.All'],
+  spHost:    'metarco2025.sharepoint.com',
+  spSite:    'MetarcoAsuntos',
+  spFolder:  'GRUAS/01 Herramientas Digitales',
+  spDriveId: 'b!zXE9F-sYakWTr3trPQhvm9LhlMApQzFBnWsOJI0dJvEWJOxhdaHCQ4wtFzmOtjn_',
+  spBackup:  'GRUAS/07 Respaldo',
+  filePath:  'METARCO_Dashboard_Datos.json'
 };
 
 const msalDash = new msal.PublicClientApplication({
@@ -1302,7 +1306,6 @@ async function msGetToken() {
     return r.accessToken;
   }
 }
-
 const GRAPH_D = 'https://graph.microsoft.com/v1.0';
 
 async function odDashRead() {
@@ -1322,6 +1325,7 @@ async function odDashWrite(data) {
     body: JSON.stringify(data, null, 2)
   });
 }
+
 
 function odDashStatus(text, ok=true) {
   const msg = document.getElementById('folderMsg');
