@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>METARCO — Dashboard de Mantenimiento</title>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -176,6 +178,11 @@ select option{background:var(--bg3);}
 .ind-lbl{font-family:var(--mono);font-size:10px;color:var(--x);}
 .ind-val{font-family:var(--mono);font-size:12px;}
 
+/* Filtro mantenimiento */
+.btn-mf{background:transparent;border:none;color:var(--dim);padding:4px 12px;font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;border-radius:3px;transition:all .2s;}
+.btn-mf:hover{color:var(--text);}
+.btn-mf.active{background:var(--blue);color:#fff;}
+
 @media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr;}}
 @media(max-width:600px){.content{padding:10px;}.tabs{padding:0 10px;}.tab{padding:10px 11px;font-size:10px;}.hdr,.folder-bar{padding:0 14px;}}
 </style>
@@ -209,6 +216,8 @@ select option{background:var(--bg3);}
 <!-- HEADER -->
 <div class="hdr">
   <div><div class="hdr-logo">META<span>R</span>CO</div><div class="hdr-sub">DASHBOARD DE MANTENIMIENTO · GRÚAS T1 &amp; T2</div></div>
+<div style="display:flex;align-items:center;gap:12px;">
+  <button id="btnReporte" onclick="generateReport()" class="btn btn-amber" style="padding:7px 16px;font-size:11px;">📄 REPORTE PDF</button>
   <div><div class="hdr-date" id="hdrDate">SÁBADO, 23 DE MAYO DE 2026</div><div class="hdr-ver">FASE 2 · v2.0</div></div>
 </div>
 
@@ -384,10 +393,17 @@ select option{background:var(--bg3);}
   </div>
 
   <!-- ===== MANTENIMIENTO ===== -->
-  <div id="sec-mantenimiento" class="sec">
+<div id="sec-mantenimiento" class="sec">
     <div class="sec-hdr">
       <div class="sec-title">Historial de Mantenimiento</div>
-      <button class="btn btn-primary" onclick="openModalMant()">+ REGISTRAR</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:2px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px;">
+          <button id="mf-all" onclick="setMantFiltro('')"   class="btn-mf active">TODAS</button>
+          <button id="mf-t1"  onclick="setMantFiltro('T1')" class="btn-mf">T1</button>
+          <button id="mf-t2"  onclick="setMantFiltro('T2')" class="btn-mf">T2</button>
+        </div>
+        <button class="btn btn-primary" onclick="openModalMant()">+ REGISTRAR</button>
+      </div>
     </div>
     <div class="g2" style="margin-bottom:14px;">
       <div class="kpi"><div class="kpi-lbl">Costo Total Mantenimiento T1</div><div class="kpi-val amber" id="mant-t1-tot">$0</div><div class="kpi-sub" id="mant-t1-cnt">0 registros</div></div>
@@ -399,6 +415,7 @@ select option{background:var(--bg3);}
         <tbody id="mant-tbody"></tbody>
       </table>
     </div>
+    <div id="mant-totales" style="margin-top:13px;"></div>
   </div>
 
   <!-- ===== ALERTAS ===== -->
@@ -1013,12 +1030,203 @@ async function delSvc(id){ if(!confirm('¿Eliminar?'))return; svcs=svcs.filter(s
 
 // ==================== MANTENIMIENTO ====================
 
-function renderMant(){
-  const data=[...mant].sort((a,b)=>b.fecha.localeCompare(a.fecha));
-  document.getElementById('mant-tbody').innerHTML=data.length?data.map(m=>`<tr><td class="mc">${m.fecha}</td><td><span class="badge badge-blue">${m.grua}</span></td><td><span class="badge badge-${m.tipo==='Correctivo'?'red':m.tipo==='Preventivo'?'green':'yellow'}">${m.tipo}</span></td><td>${m.desc}</td><td style="font-size:12px;color:var(--dim);">${m.taller||'—'}</td><td class="mc" style="color:var(--amber);">${fmt(m.costo||0)}</td><td><button class="btn-sm danger" onclick="delMant('${m.id}')">✕</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--x);padding:28px;font-family:var(--mono);font-size:11px;">SIN REGISTROS</td></tr>';
-  ['T1','T2'].forEach(g=>{ const gd=mant.filter(m=>m.grua===g),tot=gd.reduce((s,r)=>s+(+r.costo||0),0); document.getElementById(`mant-${g.toLowerCase()}-tot`).textContent=fmt(tot); document.getElementById(`mant-${g.toLowerCase()}-cnt`).textContent=`${gd.length} registros`; });
+// ── Filtro de mantenimiento por grúa ────────────────────────────────────────
+let _mantFiltro = '';
+function setMantFiltro(g) {
+  _mantFiltro = g;
+  ['mf-all','mf-t1','mf-t2'].forEach(id => {
+    document.getElementById(id)?.classList.remove('active');
+  });
+  const actId = g===''?'mf-all':g==='T1'?'mf-t1':'mf-t2';
+  document.getElementById(actId)?.classList.add('active');
+  renderMant();
 }
 
+function renderMant(){
+  const all  = [...mant].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const data = _mantFiltro ? all.filter(m=>m.grua===_mantFiltro) : all;
+
+  document.getElementById('mant-tbody').innerHTML = data.length
+    ? data.map(m=>`<tr>
+        <td class="mc">${m.fecha}</td>
+        <td><span class="badge badge-blue">${m.grua}</span></td>
+        <td><span class="badge badge-${m.tipo==='Correctivo'?'red':m.tipo==='Preventivo'?'green':'yellow'}">${m.tipo}</span></td>
+        <td>${m.desc}</td>
+        <td style="font-size:12px;color:var(--dim);">${m.taller||'—'}</td>
+        <td class="mc" style="color:var(--amber);">${fmt(m.costo||0)}</td>
+        <td><button class="btn-sm danger" onclick="delMant('${m.id}')">✕</button></td>
+      </tr>`).join('')
+    : '<tr><td colspan="7" style="text-align:center;color:var(--x);padding:28px;font-family:var(--mono);font-size:11px;">SIN REGISTROS</td></tr>';
+
+  // KPIs siempre sobre el total real (sin filtro)
+  ['T1','T2'].forEach(g=>{
+    const gd  = mant.filter(m=>m.grua===g);
+    const tot = gd.reduce((s,r)=>s+(+r.costo||0),0);
+    document.getElementById(`mant-${g.toLowerCase()}-tot`).textContent = fmt(tot);
+    document.getElementById(`mant-${g.toLowerCase()}-cnt`).textContent = `${gd.length} registros`;
+  });
+
+  // Total filtrado
+  const totFiltro = data.reduce((s,r)=>s+(+r.costo||0),0);
+  const tEl = document.getElementById('mant-totales');
+  if (tEl && _mantFiltro) {
+    tEl.innerHTML = `<div class="kpi"><div class="kpi-lbl">Costo ${_mantFiltro} (filtrado)</div><div class="kpi-val amber">${fmt(totFiltro)}</div><div class="kpi-sub">${data.length} registros</div></div>`;
+  } else if (tEl) {
+    tEl.innerHTML = '';
+  }
+}
+
+// ── Reporte PDF ─────────────────────────────────────────────────────────────
+async function generateReport() {
+  const btn = document.getElementById('btnReporte');
+  if (btn) { btn.textContent = '⏳ GENERANDO...'; btn.disabled = true; }
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
+    const W   = 210, M = 14;
+    const HOY_RPT = new Date().toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+    // Paleta
+    const AZUL_DEEP = [13,27,62], AZUL_MED = [18,56,130], AZUL_BRT = [21,101,192];
+    const AMBAR = [245,158,11], BLANCO = [255,255,255], GRIS = [241,244,248];
+    const TEXTO = [31,41,55], DIM = [100,116,139];
+
+    let y = 0;
+
+    // ── Header ──
+    doc.setFillColor(...AZUL_DEEP); doc.rect(0,0,W,28,'F');
+    doc.setFillColor(...AMBAR);     doc.rect(0,0,6,28,'F');
+    doc.setFillColor(...AZUL_MED);  doc.rect(0,25,W,3,'F');
+    doc.setTextColor(...BLANCO);
+    doc.setFont('helvetica','bold'); doc.setFontSize(20);
+    doc.text('METARCO', 16, 13);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    doc.setTextColor(200,220,255);
+    doc.text('S.A. DE C.V.  ·  DASHBOARD DE MANTENIMIENTO', 16, 19);
+    doc.setTextColor(...BLANCO);
+    doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('REPORTE OPERATIVO', W-M, 12, {align:'right'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    doc.setTextColor(200,220,255);
+    doc.text(HOY_RPT.toUpperCase(), W-M, 18, {align:'right'});
+    y = 36;
+
+    // ── Función auxiliares ──
+    const secTitle = (txt) => {
+      doc.setFillColor(...AZUL_MED);
+      doc.rect(M, y, W-M*2, 7, 'F');
+      doc.setTextColor(...BLANCO);
+      doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.text(txt, M+3, y+5);
+      y += 10;
+    };
+
+    const kpiRow = (items) => {
+      const cw = (W-M*2)/items.length;
+      items.forEach((it,i)=>{
+        const x = M + i*cw;
+        doc.setFillColor(...GRIS); doc.rect(x, y, cw-2, 14, 'F');
+        doc.setTextColor(...DIM); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+        doc.text(it.lbl.toUpperCase(), x+3, y+5);
+        doc.setTextColor(...AZUL_BRT); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+        doc.text(it.val, x+3, y+12);
+      });
+      y += 18;
+    };
+
+    const tableSection = (cols, rows, colW) => {
+      // Header
+      doc.setFillColor(...AZUL_MED);
+      doc.rect(M, y, W-M*2, 6, 'F');
+      doc.setTextColor(...BLANCO); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+      let cx = M+2;
+      cols.forEach((c,i)=>{ doc.text(c, cx, y+4.5); cx+=colW[i]; });
+      y += 7;
+      // Rows
+      rows.forEach((row,ri)=>{
+        if (y > 250) { doc.addPage(); y = 20; }
+        if (ri%2===0) { doc.setFillColor(...GRIS); doc.rect(M, y, W-M*2, 6, 'F'); }
+        doc.setTextColor(...TEXTO); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+        cx = M+2;
+        row.forEach((cell,i)=>{ doc.text(String(cell||'—').slice(0,Math.floor(colW[i]/2.2)), cx, y+4.5); cx+=colW[i]; });
+        y += 7;
+      });
+      y += 4;
+    };
+
+    // ── 1. KPIs mes en curso ──
+    secTitle('RESUMEN MES EN CURSO');
+    const mk  = MES_KEY();
+    const sm  = svcs.filter(s=>mesSvc(s)===mk);
+    const ingr = sm.reduce((s,r)=>s+(+r.ingreso||0),0);
+    const cvar = sm.reduce((s,r)=>s+(+r.costoVar||0),0);
+    kpiRow([
+      {lbl:'Servicios este mes', val:String(sm.length)},
+      {lbl:'Ingresos',           val:fmt(ingr)},
+      {lbl:'Costos variables',   val:fmt(cvar)},
+      {lbl:'Margen bruto',       val:fmt(ingr-cvar)},
+    ]);
+
+    // ── 2. Costos fijos ──
+    secTitle('ESTRUCTURA DE COSTOS FIJOS');
+    kpiRow([
+      {lbl:'Costo fijo T1 / mes', val:fmt(totT1())},
+      {lbl:'Costo fijo T2 / mes', val:fmt(totT2())},
+      {lbl:'Horas disponibles',   val:(costos.horasDisp||176)+' hrs/mes'},
+      {lbl:'Costo fijo total',    val:fmt(totT1()+totT2())},
+    ]);
+
+    // ── 3. Servicios recientes (últimos 10) ──
+    secTitle('SERVICIOS RECIENTES');
+    const svcData = [...svcs].sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,10);
+    tableSection(
+      ['Fecha','Grúa','Cliente','Tipo','Horas','Ingreso','Margen'],
+      svcData.map(s=>[s.fecha,s.grua,s.cliente,s.tipo,s.horas+'h',fmt(s.ingreso||0),fmt((+s.ingreso||0)-(+s.costoVar||0))]),
+      [22,14,38,30,14,22,22]
+    );
+
+    // ── 4. Vencimientos próximos ──
+    secTitle('VENCIMIENTOS PRÓXIMOS');
+    const vencData = [...venc].map(v=>({...v,dias:diasHasta(v.fecha)})).sort((a,b)=>a.dias-b.dias).slice(0,8);
+    tableSection(
+      ['Grúa','Documento','Fecha','Estado'],
+      vencData.map(v=>{
+        const c = v.dias<0?'VENCIDO':v.dias<=15?'URGENTE':v.dias<=30?'PRÓXIMO':'OK';
+        return [v.grua, v.doc, v.fecha, c+' ('+v.dias+'d)'];
+      }),
+      [14,70,22,36]
+    );
+
+    // ── 5. Mantenimiento (últimos 10) ──
+    secTitle('HISTORIAL DE MANTENIMIENTO');
+    const mantData = [...mant].sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,10);
+    tableSection(
+      ['Fecha','Grúa','Tipo','Descripción','Costo'],
+      mantData.map(m=>[m.fecha,m.grua,m.tipo,m.desc,fmt(m.costo||0)]),
+      [22,14,22,86,38]
+    );
+
+    // ── Footer ──
+    const pages = doc.getNumberOfPages();
+    for(let p=1;p<=pages;p++){
+      doc.setPage(p);
+      doc.setFillColor(...AZUL_MED); doc.rect(0,270,W,10,'F');
+      doc.setTextColor(...BLANCO); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+      doc.text('METARCO S.A. de C.V. · RFC: MET2001285G8 · 442 669 6143 · Querétaro, Qro.', M, 276);
+      doc.text(`Pág. ${p} / ${pages}`, W-M, 276, {align:'right'});
+    }
+
+    // Guardar
+    const fname = `METARCO_Reporte_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fname);
+    toast('Reporte PDF generado ✓');
+  } catch(e) {
+    console.error('[METARCO] generateReport error:', e);
+    toast('Error al generar reporte','error');
+  } finally {
+    if (btn) { btn.textContent = '📄 REPORTE PDF'; btn.disabled = false; }
+  }
+}
 function openModalMant(){ ['mt-fecha'].forEach(id=>document.getElementById(id).value=HOY_STR); document.getElementById('mt-grua').value='T1'; document.getElementById('mt-tipo').selectedIndex=0; ['mt-desc','mt-taller','mt-notas'].forEach(id=>document.getElementById(id).value=''); document.getElementById('mt-costo').value='0'; openOv('ov-mant'); }
 
 async function saveMant(){
