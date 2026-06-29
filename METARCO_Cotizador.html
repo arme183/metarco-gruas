@@ -2268,9 +2268,10 @@ async function generatePDF() {
     doc.setFillColor(...navyDark);
     doc.rect(0, 0, W, headerH, 'F');
 
-    // Barra de acento ámbar izquierda (firma visual METARCO)
-    doc.setFillColor(245, 158, 11); // amber
-    doc.rect(0, 0, 6, headerH, 'F');
+    // Línea izquierda blanca sutil
+    doc.setFillColor(255, 255, 255, 0.3);
+    doc.setFillColor(220, 230, 245);
+    doc.rect(0, 0, 2, headerH, 'F');
 
     // Línea inferior acento azul
     doc.setFillColor(...blueAcc);
