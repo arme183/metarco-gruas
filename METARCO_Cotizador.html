@@ -2260,52 +2260,59 @@ async function generatePDF() {
     const notas     = document.getElementById('notas').value;
 
     // ═══════════════════════════════════════════
-    // HEADER  — Gradient azul METARCO
+    // HEADER — Estilo profesional METARCO
     // ═══════════════════════════════════════════
-    const headerH = 36;
+    const headerH = 32;
 
-    // ── Smooth gradient  (60 slices + wide overlap = no banding) ──
-    const gSteps = 60;
-    for (let i = 0; i < gSteps; i++) {
-      const t = i / (gSteps - 1);
-      const r = Math.round(navyDark[0] + (blueAcc[0] - navyDark[0]) * t);
-      const g2= Math.round(navyDark[1] + (blueAcc[1] - navyDark[1]) * t);
-      const b = Math.round(navyDark[2] + (blueAcc[2] - navyDark[2]) * t);
-      doc.setFillColor(r, g2, b);
-      doc.rect((i / gSteps) * W, 0, W / gSteps + 1.2, headerH, 'F');
+    // Fondo header oscuro sólido (más limpio que el gradiente)
+    doc.setFillColor(...navyDark);
+    doc.rect(0, 0, W, headerH, 'F');
+
+    // Barra de acento ámbar izquierda (firma visual METARCO)
+    doc.setFillColor(245, 158, 11); // amber
+    doc.rect(0, 0, 6, headerH, 'F');
+
+    // Línea inferior acento azul
+    doc.setFillColor(...blueAcc);
+    doc.rect(0, headerH - 2, W, 2, 'F');
+
+    // Logo METARCO
+    try {
+      const logoData = document.querySelector('.header-logo img').src;
+      if (logoData && logoData.startsWith('http')) {
+        doc.addImage(logoData, 'PNG', 14, 6, 48, 12);
+      } else {
+        // Fallback texto si no carga la imagen
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(255, 255, 255);
+        doc.text('METARCO', 14, 16);
+      }
+    } catch(e) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(255, 255, 255);
+      doc.text('METARCO', 14, 16);
     }
 
-    // Decorative circles — scaled to smaller header
-    doc.setFillColor(16, 82, 162);
-    doc.circle(W + 10, headerH * 0.5, 28, 'F');
-    doc.setFillColor(12, 60, 128);
-    doc.circle(W - 5, -6, 22, 'F');
-
-    // Bright-blue bottom stripe
-    doc.setFillColor(...blueAcc);
-    doc.rect(0, headerH - 2.5, W, 2.5, 'F');
-
-    // ── Logo — proportions ~4:1, vertically centered in header ──
-    const logoData = document.querySelector('.header-logo img').src;
-    doc.addImage(logoData, 'PNG', margin, 6, 52, 13);
-
-    // Subtitle below logo
+    // Subtítulo bajo logo
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
-    doc.setTextColor(170, 210, 245);
-    doc.text('Servicios de Grúas y Maniobras', margin + 18, 22);
+    doc.setTextColor(14, 165, 233); // blueAcc
+    doc.text('S.A. DE C.V.  ·  SERVICIOS DE GRÚAS Y MANIOBRAS', 14, 26);
 
-    // Quote block — right side, vertically distributed
-    doc.setFontSize(7.5);
+    // Bloque derecho — número de cotización y fecha
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
     doc.setTextColor(255, 255, 255);
-    doc.text(quoteNum, W - margin, 10, { align: 'right' });
+    doc.text(quoteNum, W - margin, 13, { align: 'right' });
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(200, 220, 248);
+    doc.text('COTIZACIÓN DE SERVICIOS', W - margin, 20, { align: 'right' });
     doc.setFontSize(6.5);
-    doc.setTextColor(200, 225, 248);
-    doc.text(quoteDate, W - margin, 17, { align: 'right' });
-    doc.setTextColor(160, 205, 240);
-    doc.text('COTIZACIÓN DE SERVICIOS', W - margin, 24, { align: 'right' });
+    doc.setTextColor(160, 195, 230);
+    doc.text(quoteDate, W - margin, 27, { align: 'right' });
 
     let y = headerH + 8;
 
@@ -4025,7 +4032,7 @@ const msalCot = new msal.PublicClientApplication({
     clientId: MS_CFG.clientId,
     authority: `https://login.microsoftonline.com/${MS_CFG.tenantId}`,
     redirectUri: 'https://arme183.github.io/metarco-gruas/METARCO_Cotizador.html',
-    navigateToLoginRequestUrl: false
+    navigateToLoginRequestUrl: true
   },
   cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
 });
@@ -4035,8 +4042,8 @@ let odSaveTimer = null;
 async function msLogin() {
   document.getElementById('msLoginBtn').textContent = 'Conectando...';
   try {
-    const r = await msalCot.loginPopup({ scopes: MS_CFG.scopes, prompt: 'select_account' });
-    await msBootCot(r.account);
+    // Usar redirect en lugar de popup — evita block_nested_popups en todos los navegadores
+    await msalCot.loginRedirect({ scopes: MS_CFG.scopes, prompt: 'select_account' });
   } catch(e) {
     const el = document.getElementById('msLoginError');
     el.textContent = 'No se pudo iniciar sesión. Usa tu cuenta @metarco.com.mx.';
@@ -4046,8 +4053,7 @@ async function msLogin() {
 }
 
 async function msLogout() {
-  await msalCot.logoutPopup();
-  location.reload();
+  await msalCot.logoutRedirect({ postLogoutRedirectUri: 'https://arme183.github.io/metarco-gruas/METARCO_Cotizador.html' });
 }
 
 async function msGetToken() {
@@ -4057,8 +4063,9 @@ async function msGetToken() {
     const r = await msalCot.acquireTokenSilent({ scopes: MS_CFG.scopes, account: acc[0] });
     return r.accessToken;
   } catch {
-    const r = await msalCot.acquireTokenPopup({ scopes: MS_CFG.scopes });
-    return r.accessToken;
+    // Silent falló — usar redirect (no popup) para renovar token
+    await msalCot.acquireTokenRedirect({ scopes: MS_CFG.scopes });
+    return null;
   }
 }
 
@@ -4357,9 +4364,20 @@ async function msBootCot(account) {
   };
 }
 
-// Auto-login if session exists
+// Auto-login — maneja tanto sesión existente como redirect response
 (async () => {
   await msalCot.initialize();
+  // Primero procesar el resultado del redirect (si venimos de loginRedirect)
+  try {
+    const result = await msalCot.handleRedirectPromise();
+    if (result && result.account) {
+      await msBootCot(result.account);
+      return;
+    }
+  } catch(e) {
+    console.error('[METARCO] handleRedirectPromise error:', e);
+  }
+  // Si ya hay sesión activa, usarla directamente
   const accounts = msalCot.getAllAccounts();
   if (accounts.length > 0) await msBootCot(accounts[0]);
 })();
