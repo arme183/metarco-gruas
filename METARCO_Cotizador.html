@@ -2268,10 +2268,9 @@ async function generatePDF() {
     doc.setFillColor(...navyDark);
     doc.rect(0, 0, W, headerH, 'F');
 
-    // Línea izquierda blanca sutil
-    doc.setFillColor(255, 255, 255, 0.3);
-    doc.setFillColor(220, 230, 245);
-    doc.rect(0, 0, 2, headerH, 'F');
+    // Barra de acento ámbar izquierda (firma visual METARCO)
+    doc.setFillColor(245, 158, 11); // amber
+    doc.rect(0, 0, 6, headerH, 'F');
 
     // Línea inferior acento azul
     doc.setFillColor(...blueAcc);
@@ -4072,6 +4071,28 @@ async function msGetToken() {
 
 const GRAPH_C = 'https://graph.microsoft.com/v1.0';
 
+// ── Acceso: valida contra la tabla usuarios de Metarco (Azure) ──────────────
+const AZ_GUARD = { acc:'metarcostorage', sas:'?sv=2026-02-06&ss=bfqt&srt=o&sp=rwdlacupiytfx&se=2028-01-01T09:03:16Z&st=2026-06-02T00:48:16Z&spr=https&sig=jopE8S7LFpN79M86LWlZ5B%2Bws5%2BYbZvECNdVUAtHiGI%3D' };
+async function verificarAcceso(email, flag){
+  try{
+    const rk = String(email||'').toLowerCase().replace(/@/g,'_AT_').replace(/\./g,'_');
+    const url = `https://${AZ_GUARD.acc}.table.core.windows.net/usuarios(PartitionKey='usuarios',RowKey='${rk}')${AZ_GUARD.sas}`;
+    const r = await fetch(url,{headers:{Accept:'application/json;odata=nometadata'}});
+    if(!r.ok) return false;
+    const u = await r.json();
+    return u[flag]===true||u[flag]==='true'||u.rol==='admin';
+  }catch(e){ return false; }
+}
+function mostrarSinAcceso(email){
+  const ov=document.getElementById('msLoginOverlay');
+  if(ov){ ov.style.display='flex';
+    const err=document.getElementById('msLoginError');
+    if(err){ err.style.display='block'; err.textContent='Tu cuenta ('+email+') no tiene acceso a esta aplicacion. Pide al administrador activar tu acceso en Admin > Usuarios.'; }
+    const btn=document.getElementById('msLoginBtn');
+    if(btn){ btn.textContent='Cambiar de cuenta'; btn.onclick=msLogout; }
+  }
+}
+
 // ── Auto-descubrimiento del driveId compartido ──────────────────────────────
 // Resuelve el driveId de la biblioteca de documentos del sitio MetarcoAsuntos.
 // Si falla, usa el driveId de respaldo ya verificado.
@@ -4273,6 +4294,8 @@ async function spDiagBackup() {
 }
 
 async function msBootCot(account) {
+  const _tieneAcc = await verificarAcceso(account.username, 'accesoCotizador');
+  if(!_tieneAcc){ mostrarSinAcceso(account.username); return; }
   document.getElementById('msLoginOverlay').style.display = 'none';
   const bar = document.getElementById('odStatusBar');
   bar.style.display = 'flex';
