@@ -212,6 +212,7 @@ select option{background:var(--bg3);}
   </div>
 </div>
 
+
 <!-- HEADER -->
 <div class="hdr">
   <div><div class="hdr-logo">META<span>R</span>CO</div><div class="hdr-sub">DASHBOARD DE MANTENIMIENTO · GRÚAS T1 &amp; T2</div></div>
@@ -1516,18 +1517,66 @@ async function msGetToken() {
 }
 const GRAPH_D = 'https://graph.microsoft.com/v1.0';
 
+// ── Acceso: valida contra la tabla usuarios de Metarco (Azure) ──────────────
+const AZ_GUARD = { acc:'metarcostorage', sas:'?sv=2026-02-06&ss=bfqt&srt=o&sp=rwdlacupiytfx&se=2028-01-01T09:03:16Z&st=2026-06-02T00:48:16Z&spr=https&sig=jopE8S7LFpN79M86LWlZ5B%2Bws5%2BYbZvECNdVUAtHiGI%3D' };
+async function verificarAcceso(email, flag){
+  try{
+    const rk = String(email||'').toLowerCase().replace(/@/g,'_AT_').replace(/\./g,'_');
+    const url = `https://${AZ_GUARD.acc}.table.core.windows.net/usuarios(PartitionKey='usuarios',RowKey='${rk}')${AZ_GUARD.sas}`;
+    const r = await fetch(url,{headers:{Accept:'application/json;odata=nometadata'}});
+    if(!r.ok) return false;
+    const u = await r.json();
+    return u[flag]===true||u[flag]==='true'||u.rol==='admin';
+  }catch(e){ return false; }
+}
+function mostrarSinAcceso(email){
+  const ov=document.getElementById('msLoginOverlay');
+  if(ov){ ov.style.display='flex';
+    const err=document.getElementById('msLoginError');
+    if(err){ err.style.display='block'; err.textContent='Tu cuenta ('+email+') no tiene acceso a esta aplicacion. Pide al administrador activar tu acceso en Admin > Usuarios.'; }
+    const btn=document.getElementById('msLoginBtn');
+    if(btn){ btn.textContent='Cambiar de cuenta'; btn.onclick=msLogout; }
+  }
+}
+
+// ── Drive general (sitio compartido MetarcoAsuntos) ─────────────────────────
+let _dashDriveId = null;
+async function dashDriveId(){
+  if(_dashDriveId) return _dashDriveId;
+  try{
+    const tok = await msGetToken();
+    const siteR = await fetch(`${GRAPH_D}/sites/${MS_DASH.spHost}:/sites/${MS_DASH.spSite}`,{headers:{Authorization:`Bearer ${tok}`}});
+    if(!siteR.ok) throw new Error('sitio no encontrado');
+    const site = await siteR.json();
+    const dR = await fetch(`${GRAPH_D}/sites/${site.id}/drives`,{headers:{Authorization:`Bearer ${tok}`}});
+    const ds = await dR.json(); const d=(ds.value||[])[0];
+    if(!d) throw new Error('sin drives');
+    _dashDriveId = d.id; return _dashDriveId;
+  }catch(e){ _dashDriveId = MS_DASH.spDriveId; return _dashDriveId; }
+}
+
 async function odDashRead() {
   const tok = await msGetToken();
-  const r = await fetch(`${GRAPH_D}/me/drive/root:/${MS_DASH.filePath}:/content`,
+  const driveId = await dashDriveId();
+  const folder = encodeURIComponent(MS_DASH.spFolder).replace(/%2F/g,'/');
+  const r = await fetch(`${GRAPH_D}/drives/${driveId}/root:/${folder}/${encodeURIComponent(MS_DASH.filePath)}:/content`,
     { headers:{ Authorization:`Bearer ${tok}` }});
-  if (r.status === 404) return null;
+  if (r.status === 404) {
+    try {
+      const p = await fetch(`${GRAPH_D}/me/drive/root:/${MS_DASH.filePath}:/content`,{ headers:{ Authorization:`Bearer ${tok}` }});
+      if (p.ok) return await p.json();
+    } catch(e) {}
+    return null;
+  }
   return await r.json();
 }
 
 async function odDashWrite(data) {
   const tok = await msGetToken();
+  const driveId = await dashDriveId();
+  const folder = encodeURIComponent(MS_DASH.spFolder).replace(/%2F/g,'/');
   data._ts = new Date().toISOString();
-  await fetch(`${GRAPH_D}/me/drive/root:/${MS_DASH.filePath}:/content`, {
+  await fetch(`${GRAPH_D}/drives/${driveId}/root:/${folder}/${encodeURIComponent(MS_DASH.filePath)}:/content`, {
     method: 'PUT',
     headers: { Authorization:`Bearer ${tok}`, 'Content-Type':'application/json' },
     body: JSON.stringify(data, null, 2)
@@ -1545,14 +1594,14 @@ function odDashStatus(text, ok=true) {
 }
 
 async function odDashSaveNow() {
-  odDashStatus('☁ Guardando en OneDrive...');
+  odDashStatus('☁ Guardando en el drive general...');
   try {
     // Save EXACT same structure as original app uses
     const data = { costos, venc, svcs, mant, alertas, pagos, ts: new Date().toISOString() };
     await odDashWrite(data);
-    odDashStatus('✓ OneDrive · Sincronizado · ' + new Date().toLocaleTimeString('es-MX'));
+    odDashStatus('✓ Drive general · Sincronizado · ' + new Date().toLocaleTimeString('es-MX'));
   } catch(e) {
-    odDashStatus('⚠ Error al guardar en OneDrive', false);
+    odDashStatus('⚠ Error al guardar en el drive general', false);
     console.error(e);
   }
 }
@@ -1563,6 +1612,8 @@ function odDashScheduleSave() {
 }
 
 async function msBootDash(account) {
+  const _tieneAcc = await verificarAcceso(account.username, 'accesoGruas');
+  if(!_tieneAcc){ mostrarSinAcceso(account.username); return; }
   document.getElementById('msLoginOverlay').style.display = 'none';
 
   // Clean stale data from previous version (wrong field names)
@@ -1593,7 +1644,7 @@ async function msBootDash(account) {
     bar.querySelector('.folder-actions').appendChild(logoutBtn);
   }
 
-  odDashStatus('☁ Cargando desde OneDrive...');
+  odDashStatus('☁ Cargando desde el drive general...');
 
   try {
     const data = await odDashRead();
@@ -1615,11 +1666,11 @@ async function msBootDash(account) {
       if (!isValidPagos(data.pagos) || !isValidCostos(data.costos)) {
         setTimeout(() => odDashSaveNow(), 2000);
       }
-      odDashStatus('✓ OneDrive · Datos cargados · ' + account.username.split('@')[0]);
+      odDashStatus('✓ Drive general · Datos cargados · ' + account.username.split('@')[0]);
     } else {
       odDashStatus('☁ Primera vez — guardando datos iniciales...');
       setTimeout(() => odDashSaveNow(), 1000);
-      odDashStatus('✓ OneDrive · Listo · ' + account.username.split('@')[0]);
+      odDashStatus('✓ Drive general · Listo · ' + account.username.split('@')[0]);
     }
     if (typeof renderResumen === 'function') renderResumen();
   } catch(e) {
@@ -1642,8 +1693,8 @@ async function msBootDash(account) {
   };
 
   // Override folder functions — not needed anymore
-  window.selectFolder    = () => toast('Datos guardados automáticamente en OneDrive');
-  window.saveToFolder    = async (manual) => { await odDashSaveNow(); if(manual && window.toast) toast('Guardado en OneDrive ✓'); };
+  window.selectFolder    = () => toast('Datos guardados automáticamente en el drive general (SharePoint)');
+  window.saveToFolder    = async (manual) => { await odDashSaveNow(); if(manual && window.toast) toast('Guardado en el drive general ✓'); };
   window.loadFromFolder  = async () => {};
 }
 
